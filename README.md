@@ -1,98 +1,275 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Dental E-Commerce - Site E-commerce de Matériel Dentaire
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Une application e-commerce complète développée avec NestJS (backend) et React (frontend) pour la vente de matériel dentaire professionnel.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## 🚀 Fonctionnalités
 
-## Description
+### Frontend (React)
+- **Authentification** : Inscription, connexion, gestion des sessions JWT
+- **Catalogue produits** : Navigation, filtrage par catégorie, recherche
+- **Panier** : Ajout/suppression de produits, gestion des quantités
+- **Commandes** : Processus de commande complet avec choix du paiement
+- **Espace client** : Historique des commandes, profil utilisateur
+- **Back-office admin** : Gestion des produits, catégories, commandes, utilisateurs
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+### Backend (NestJS)
+- **API REST** : Endpoints complets pour toutes les fonctionnalités
+- **Authentification JWT** : Sécurisation avec guards par rôle
+- **Base de données** : TypeORM avec MariaDB
+- **Upload d'images** : Gestion des images produits avec Multer
+- **Validation** : DTOs avec class-validator
+- **Documentation** : Swagger (optionnel)
 
-## Project setup
+## 🛠 Stack Technique
 
-```bash
-$ npm install
+- **Backend** : NestJS, TypeORM, JWT, Multer, bcryptjs
+- **Frontend** : React, TypeScript, Axios, React Router DOM, Tailwind CSS
+- **Base de données** : MariaDB
+- **Déploiement** : Docker, docker-compose
+- **Authentification** : JWT avec guards par rôle (admin/client)
+
+## 📁 Structure du Projet
+
+```
+dental-ecommerce/
+├── backend/backend/          # Application NestJS
+│   ├── src/
+│   │   ├── entities/         # Entités TypeORM
+│   │   ├── auth/            # Module d'authentification
+│   │   ├── products/        # Module des produits
+│   │   ├── categories/      # Module des catégories
+│   │   ├── orders/          # Module des commandes
+│   │   ├── users/           # Module des utilisateurs
+│   │   ├── uploads/         # Module d'upload
+│   │   └── dashboard/       # Module du tableau de bord
+│   ├── Dockerfile
+│   └── .env
+├── frontend/                # Application React
+│   ├── src/
+│   │   ├── components/      # Composants réutilisables
+│   │   ├── pages/           # Pages de l'application
+│   │   ├── contexts/        # Contextes React (Auth, Cart)
+│   │   ├── services/        # Services API
+│   │   └── types/           # Types TypeScript
+│   ├── Dockerfile
+│   └── nginx.conf
+└── docker-compose.yml       # Configuration Docker
 ```
 
-## Compile and run the project
+## 🚀 Installation et Déploiement
 
+### Prérequis
+- Node.js 18+
+- Docker et Docker Compose
+- Git
+
+### 1. Cloner le projet
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+git clone <repository-url>
+cd dental-ecommerce
 ```
 
-## Run tests
+### 2. Déploiement avec Docker (Recommandé)
 
 ```bash
-# unit tests
-$ npm run test
+# Lancer tous les services
+docker-compose up -d
 
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+# Vérifier que les services sont démarrés
+docker-compose ps
 ```
 
-## Deployment
+L'application sera accessible sur :
+- **Frontend** : http://localhost:3001
+- **Backend API** : http://localhost:3000
+- **Base de données** : localhost:3306
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### 3. Installation manuelle (Développement)
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+#### Backend
+```bash
+cd backend/backend
+npm install
+cp .env.example .env  # Configurer les variables d'environnement
+npm run start:dev
+```
+
+#### Frontend
+```bash
+cd frontend
+npm install
+npm start
+```
+
+#### Base de données
+```bash
+# Installer MariaDB localement ou utiliser Docker
+docker run -d --name mariadb \
+  -e MYSQL_ROOT_PASSWORD=password \
+  -e MYSQL_DATABASE=dental_ecommerce \
+  -p 3306:3306 \
+  mariadb:10.9
+
+# Importer les données initiales
+mysql -h localhost -u root -p dental_ecommerce < backend/backend/src/database/seeds/initial-data.sql
+```
+
+## 🔧 Configuration
+
+### Variables d'environnement (Backend)
+
+```env
+# Base de données
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=password
+DB_NAME=dental_ecommerce
+
+# JWT
+JWT_SECRET=dental-ecommerce-secret-key-change-in-production
+
+# Application
+NODE_ENV=development
+PORT=3000
+
+# Upload
+UPLOAD_PATH=./uploads
+MAX_FILE_SIZE=5242880
+```
+
+### Variables d'environnement (Frontend)
+
+```env
+REACT_APP_API_URL=http://localhost:3000/api
+```
+
+## 👤 Comptes de démonstration
+
+### Administrateur
+- **Email** : admin@dental-ecommerce.com
+- **Mot de passe** : admin123
+
+### Client (à créer via inscription)
+- Créez un compte client via la page d'inscription
+
+## 📊 Base de Données
+
+### Entités principales
+- **User** : Utilisateurs (admin/client)
+- **Role** : Rôles utilisateur
+- **Product** : Produits
+- **Category** : Catégories de produits
+- **Order** : Commandes
+- **OrderItem** : Articles de commande
+- **Image** : Images des produits
+
+### Relations
+- User ↔ Role (Many-to-One)
+- User ↔ Order (One-to-Many)
+- Product ↔ Category (Many-to-Many)
+- Product ↔ Image (One-to-Many)
+- Order ↔ OrderItem (One-to-Many)
+- Product ↔ OrderItem (One-to-Many)
+
+## 🔐 Sécurité
+
+- **Authentification JWT** avec expiration
+- **Guards par rôle** (admin/client)
+- **Validation des données** avec DTOs
+- **Hashage des mots de passe** avec bcryptjs
+- **CORS configuré** pour le frontend
+- **Validation des uploads** d'images
+
+## 📱 Fonctionnalités Détaillées
+
+### Interface Client
+- Navigation par catégories
+- Recherche et filtrage des produits
+- Fiche produit détaillée avec images
+- Panier persistant (localStorage)
+- Processus de commande sécurisé
+- Historique des commandes
+- Gestion du profil
+
+### Back-office Admin
+- Tableau de bord avec statistiques
+- CRUD complet des produits
+- Gestion des catégories
+- Suivi des commandes
+- Gestion des utilisateurs
+- Inventaire et alertes stock
+- Upload d'images multiples
+
+### API Backend
+- Endpoints RESTful complets
+- Documentation Swagger
+- Gestion des erreurs
+- Pagination des résultats
+- Filtrage et recherche
+- Upload de fichiers
+- Statistiques et rapports
+
+## 🧪 Tests
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Backend
+cd backend/backend
+npm run test
+npm run test:e2e
+
+# Frontend
+cd frontend
+npm test
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## 📦 Production
 
-## Resources
+### Optimisations
+- Build optimisé React
+- Compression Nginx
+- Cache des assets statiques
+- Variables d'environnement sécurisées
+- Logs structurés
 
-Check out a few resources that may come in handy when working with NestJS:
+### Monitoring
+- Logs applicatifs
+- Métriques de performance
+- Surveillance de la base de données
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## 🤝 Contribution
 
-## Support
+1. Fork le projet
+2. Créer une branche feature (`git checkout -b feature/AmazingFeature`)
+3. Commit les changements (`git commit -m 'Add some AmazingFeature'`)
+4. Push vers la branche (`git push origin feature/AmazingFeature`)
+5. Ouvrir une Pull Request
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 📄 Licence
 
-## Stay in touch
+Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+## 🆘 Support
 
-## License
+Pour toute question ou problème :
+1. Vérifiez la documentation
+2. Consultez les issues GitHub
+3. Créez une nouvelle issue si nécessaire
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+## 🔄 Mises à jour
+
+### Version 1.0.0
+- ✅ Authentification complète
+- ✅ Gestion des produits et catégories
+- ✅ Système de commandes
+- ✅ Interface d'administration
+- ✅ Déploiement Docker
+
+### Roadmap
+- [ ] Système de paiement réel (Stripe/PayPal)
+- [ ] Notifications email
+- [ ] Système de reviews/avis
+- [ ] Programme de fidélité
+- [ ] API mobile
+- [ ] Intégration ERP
+
