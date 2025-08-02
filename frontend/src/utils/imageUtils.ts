@@ -3,7 +3,10 @@
  * Utilitaires pour la gestion des images
  */
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+let API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000/api';
+
+API_BASE_URL = API_BASE_URL.replace(/\/api\/?$/, ''); // Supprime /api ou /api/ à la fin
+
 
 export const getImageUrl = (imageUrl?: string): string => {
   if (!imageUrl) {
