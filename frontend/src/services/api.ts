@@ -344,6 +344,42 @@ export const promotionService = {
   },
 };
 
+// Services du panier
+export const cartService = {
+  getCart: async (): Promise<any[]> => {
+    const response = await api.get('/cart');
+    return response.data;
+  },
+
+  addToCart: async (productId: number, quantity: number = 1): Promise<any> => {
+    const response = await api.post('/cart/items', { productId, quantity });
+    return response.data;
+  },
+
+  updateCartItem: async (productId: number, quantity: number): Promise<any> => {
+    const response = await api.patch(`/cart/items/${productId}`, { quantity });
+    return response.data;
+  },
+
+  removeFromCart: async (productId: number): Promise<void> => {
+    await api.delete(`/cart/items/${productId}`);
+  },
+
+  clearCart: async (): Promise<void> => {
+    await api.delete('/cart');
+  },
+
+  getCartCount: async (): Promise<number> => {
+    const response = await api.get('/cart/count');
+    return response.data.count;
+  },
+
+  getCartTotal: async (): Promise<number> => {
+    const response = await api.get('/cart/total');
+    return response.data.total;
+  },
+};
+
 // Services de wishlist
 export const wishlistService = {
   getWishlist: async (): Promise<any[]> => {

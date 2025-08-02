@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { AuthProvider } from './contexts/AuthContext';
 import { CartProvider } from './contexts/CartContext';
 import { WishlistProvider } from './contexts/WishlistContext';
+import { NotificationProvider } from './contexts/NotificationContext';
 
 // Components
 import Header from './components/Header';
@@ -57,11 +58,7 @@ const AppContent: React.FC = () => {
           <Route path="/reset-password" element={<ResetPassword />} />
           
           {/* Routes Protégées */}
-          <Route path="/cart" element={
-            <ProtectedRoute>
-              <Cart />
-            </ProtectedRoute>
-          } />
+          <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={
             <ProtectedRoute>
               <Checkout />
@@ -106,18 +103,20 @@ const AppContent: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <CartProvider>
-        <WishlistProvider>
-          <Router
-            future={{
-              v7_startTransition: true,
-              v7_relativeSplatPath: true
-            }}
-          >
-            <AppContent />
-          </Router>
-        </WishlistProvider>
-      </CartProvider>
+      <NotificationProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <Router
+              future={{
+                v7_startTransition: true,
+                v7_relativeSplatPath: true
+              }}
+            >
+              <AppContent />
+            </Router>
+          </WishlistProvider>
+        </CartProvider>
+      </NotificationProvider>
     </AuthProvider>
   );
 };

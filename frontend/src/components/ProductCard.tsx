@@ -32,7 +32,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (user && stock > 0) {
+    if (stock > 0) {
       await addToCart(product, 1);
     }
   };
@@ -146,7 +146,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
         {/* Quick Actions Overlay */}
-        {showQuickActions && isHovered && user && stock > 0 && (
+        {showQuickActions && isHovered && stock > 0 && (
           <div className="absolute inset-0 bg-black/20 flex items-center justify-center transition-all duration-200">
             <button
               onClick={handleAddToCart}

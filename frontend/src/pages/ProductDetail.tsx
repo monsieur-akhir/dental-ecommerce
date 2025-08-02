@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useWishlist } from '../contexts/WishlistContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { productService } from '../services/api';
 import { Product } from '../types';
 import { getImageUrl, handleImageError } from '../utils/imageUtils';
@@ -18,6 +19,7 @@ const ProductDetail: React.FC = () => {
   const { addToCart, isAddingToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
   const { user } = useAuth();
+  const { addNotification } = useNotification();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -39,8 +41,17 @@ const ProductDetail: React.FC = () => {
   }, [id]);
 
   const handleAddToCart = async () => {
-    if (product && user) {
-      await addToCart(product, quantity);
+    if (product) {
+      try {
+        await addToCart(product, quantity);
+      } catch (error) {
+        addNotification({
+          type: 'error',
+          title: 'Erreur',
+          message: 'Impossible d\'ajouter le produit au panier. Veuillez réessayer.',
+          duration: 5000
+        });
+      }
     }
   };
 
@@ -269,64 +280,79 @@ const ProductDetail: React.FC = () => {
             )}
 
             {/* Quantité et Ajout au panier */}
-            {user && (
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="quantity" className="block text-sm font-semibold text-primary-700 mb-2">
-                    Quantité
-                  </label>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="w-10 h-10 bg-primary-100 text-primary-600 rounded-lg hover:bg-primary-200 transition-colors duration-200 flex items-center justify-center"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                      </svg>
-                    </button>
-                    <input
-                      type="number"
-                      id="quantity"
-                      min="1"
-                      max={stock}
-                      value={quantity}
-                      onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                      className="w-20 text-center border border-primary-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
-                    />
-                    <button
-                      onClick={() => setQuantity(Math.min(stock, quantity + 1))}
-                      className="w-10 h-10 bg-primary-100 text-primary-600 rounded-lg hover:bg-primary-200 transition-colors duration-200 flex items-center justify-center"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                      </svg>
-                    </button>
-                  </div>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="quantity" className="block text-sm font-semibold text-primary-700 mb-2">
+                  Quantité
+                </label>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-10 h-10 bg-primary-100 text-primary-600 rounded-lg hover:bg-primary-200 transition-colors duration-200 flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                    </svg>
+                  </button>
+                  <input
+                    type="number"
+                    id="quantity"
+                    min="1"
+                    max={stock}
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-20 text-center border border-primary-200 rounded-lg py-2 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent"
+                  />
+                  <button
+                    onClick={() => setQuantity(Math.min(stock, quantity + 1))}
+                    className="w-10 h-10 bg-primary-100 text-primary-600 rounded-lg hover:bg-primary-200 transition-colors duration-200 flex items-center justify-center"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                  </button>
                 </div>
-
-                <button
-                  onClick={handleAddToCart}
-                  disabled={isAddingToCart || isOutOfStock}
-                  className="w-full py-4 px-6 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-medium hover:shadow-large disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                >
-                  {isAddingToCart ? (
-                    <>
-                      <div className="loader w-5 h-5"></div>
-                      <span>Ajout en cours...</span>
-                    </>
-                  ) : isOutOfStock ? (
-                    <span>Rupture de stock</span>
-                  ) : (
-                    <>
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
-                      </svg>
-                      <span>Ajouter au panier</span>
-                    </>
-                  )}
-                </button>
               </div>
-            )}
+
+              <button
+                onClick={handleAddToCart}
+                disabled={isAddingToCart || isOutOfStock}
+                className="w-full py-4 px-6 bg-gradient-to-r from-accent-500 to-accent-600 hover:from-accent-600 hover:to-accent-700 text-white font-semibold rounded-xl transition-all duration-200 shadow-medium hover:shadow-large disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                {isAddingToCart ? (
+                  <>
+                    <div className="loader w-5 h-5"></div>
+                    <span>Ajout en cours...</span>
+                  </>
+                ) : isOutOfStock ? (
+                  <span>Rupture de stock</span>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
+                    </svg>
+                    <span>Ajouter au panier</span>
+                  </>
+                )}
+              </button>
+              
+              {!user && (
+                <div className="text-center">
+                  <p className="text-sm text-primary-600 mb-2">
+                    Connectez-vous pour sauvegarder votre panier et accéder à vos commandes
+                  </p>
+                  <Link
+                    to="/login"
+                    className="inline-flex items-center px-4 py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors duration-200 text-sm font-medium"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+                    </svg>
+                    Se connecter
+                  </Link>
+                </div>
+              )}
+            </div>
 
             {/* Caractéristiques */}
             {product.features && product.features.length > 0 && (
