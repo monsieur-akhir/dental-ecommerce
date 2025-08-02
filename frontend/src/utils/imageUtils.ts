@@ -15,24 +15,24 @@ export const getImageUrl = (imageUrl?: string): string => {
     return imageUrl;
   }
   
-  // Si c'est un chemin relatif qui commence par /api/, on supprime /api/
-  if (imageUrl.startsWith('/api/')) {
-    const baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:3000';
-    return `${baseUrl}${imageUrl.substring(4)}`; // Supprime '/api' du début
+  // Supprimer /api/ de l'URL si présent (pour les images)
+  let cleanUrl = imageUrl;
+  if (cleanUrl.startsWith('/api/')) {
+    cleanUrl = cleanUrl.substring(4); // Supprime '/api' du début
   }
   
   // Si c'est un chemin relatif qui commence par /uploads/
-  if (imageUrl.startsWith('/uploads/')) {
-    return `${API_BASE_URL}${imageUrl}`;
+  if (cleanUrl.startsWith('/uploads/')) {
+    return `${API_BASE_URL}${cleanUrl}`;
   }
   
   // Si c'est un chemin relatif qui commence par /
-  if (imageUrl.startsWith('/')) {
-    return `${API_BASE_URL}${imageUrl}`;
+  if (cleanUrl.startsWith('/')) {
+    return `${API_BASE_URL}${cleanUrl}`;
   }
   
   // Si c'est un chemin relatif sans /
-  return `${API_BASE_URL}/${imageUrl}`;
+  return `${API_BASE_URL}/${cleanUrl}`;
 };
 
 /**
