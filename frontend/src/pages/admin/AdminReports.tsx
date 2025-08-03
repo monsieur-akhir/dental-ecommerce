@@ -47,6 +47,35 @@ const AdminReports: React.FC = () => {
     return Math.max(0, Math.floor(currentData * 0.8)); // 20% de réduction pour simuler
   };
 
+  // Fonction pour générer un rapport CSV
+  const generateCSVReport = (): string => {
+    const headers = [
+      'Métrique',
+      'Valeur',
+      'Période',
+      'Date d\'export'
+    ];
+
+    const rows = [
+      ['Chiffre d\'affaires total', `${reportData?.sales.total.toLocaleString()}€`, selectedPeriod, new Date().toLocaleDateString()],
+      ['Nombre total de commandes', reportData?.orders.total.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+      ['Commandes en attente', reportData?.orders.pending.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+      ['Commandes complétées', reportData?.orders.completed.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+      ['Commandes annulées', reportData?.orders.cancelled.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+      ['Utilisateurs actifs', reportData?.users.active.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+      ['Nouveaux utilisateurs ce mois', reportData?.users.newThisMonth.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+      ['Produits en stock faible', reportData?.products.lowStock.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+      ['Produits actifs', reportData?.products.active.toString() || '0', selectedPeriod, new Date().toLocaleDateString()],
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    return csvContent;
+  };
+
   useEffect(() => {
     fetchReportData();
   }, [selectedPeriod]);
@@ -350,28 +379,68 @@ const AdminReports: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-primary-100">
           <h3 className="text-lg font-semibold text-primary-800 mb-4">Activité récente</h3>
           <div className="space-y-4">
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-primary-800">Nouvelle commande #1234</p>
-                <p className="text-xs text-primary-500">Il y a 5 minutes</p>
+            {reportData.orders.total > 0 ? (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary-800">
+                    {reportData.orders.pending > 0 ? `${reportData.orders.pending} commande(s) en attente` : 'Aucune commande en attente'}
+                  </p>
+                  <p className="text-xs text-primary-500">Dernière mise à jour</p>
+                </div>
+                <span className="text-sm font-semibold text-green-600">
+                  {reportData.sales.total > 0 ? `+${reportData.sales.total.toLocaleString()}€` : '0€'}
+                </span>
               </div>
-              <span className="text-sm font-semibold text-green-600">+150€</span>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-primary-800">Nouveau client inscrit</p>
-                <p className="text-xs text-primary-500">Il y a 15 minutes</p>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary-800">Aucune commande récente</p>
+                  <p className="text-xs text-primary-500">Aucune activité</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-primary-800">Stock faible - Masques</p>
-                <p className="text-xs text-primary-500">Il y a 1 heure</p>
+            )}
+            
+            {reportData.users.newThisMonth > 0 ? (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary-800">
+                    {reportData.users.newThisMonth} nouveau(x) client(s) ce mois
+                  </p>
+                  <p className="text-xs text-primary-500">Croissance utilisateurs</p>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary-800">Aucun nouveau client</p>
+                  <p className="text-xs text-primary-500">Ce mois</p>
+                </div>
+              </div>
+            )}
+            
+            {reportData.products.lowStock > 0 ? (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary-800">
+                    {reportData.products.lowStock} produit(s) en stock faible
+                  </p>
+                  <p className="text-xs text-primary-500">Attention requise</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary-800">Stock optimal</p>
+                  <p className="text-xs text-primary-500">Tous les produits</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -379,25 +448,63 @@ const AdminReports: React.FC = () => {
         <div className="bg-white p-6 rounded-lg shadow-sm border border-primary-100">
           <h3 className="text-lg font-semibold text-primary-800 mb-4">Actions rapides</h3>
           <div className="grid grid-cols-2 gap-3">
-            <button className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors">
+            <button 
+              onClick={() => {
+                const dataStr = JSON.stringify(reportData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                const url = URL.createObjectURL(dataBlob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `rapport-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
+            >
               <div className="text-lg mb-1">📊</div>
               <div className="text-sm font-medium text-primary-800">Rapport détaillé</div>
-              <div className="text-xs text-primary-500">Export PDF</div>
+              <div className="text-xs text-primary-500">Export JSON</div>
             </button>
-            <button className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors">
+            
+            <button 
+              onClick={() => {
+                const csvContent = generateCSVReport();
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `rapport-${selectedPeriod}-${new Date().toISOString().split('T')[0]}.csv`;
+                link.click();
+                URL.revokeObjectURL(link.href);
+              }}
+              className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
+            >
               <div className="text-lg mb-1">📧</div>
-              <div className="text-sm font-medium text-primary-800">Newsletter</div>
-              <div className="text-xs text-primary-500">Envoyer</div>
+              <div className="text-sm font-medium text-primary-800">Export CSV</div>
+              <div className="text-xs text-primary-500">Télécharger</div>
             </button>
-            <button className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors">
+            
+            <button 
+              onClick={() => {
+                const lowStockCount = reportData.products.lowStock;
+                alert(`Alertes stock : ${lowStockCount} produit(s) en stock faible\n\nAction recommandée : Vérifier et réapprovisionner les produits concernés.`);
+              }}
+              className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
+            >
               <div className="text-lg mb-1">⚠️</div>
               <div className="text-sm font-medium text-primary-800">Alertes stock</div>
-              <div className="text-xs text-primary-500">Configurer</div>
+              <div className="text-xs text-primary-500">{reportData.products.lowStock} produit(s)</div>
             </button>
-            <button className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors">
+            
+            <button 
+              onClick={() => {
+                const pendingOrders = reportData.orders.pending;
+                alert(`Commandes en attente : ${pendingOrders} commande(s)\n\nAction recommandée : Traiter les commandes en attente pour améliorer la satisfaction client.`);
+              }}
+              className="p-3 text-left border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors"
+            >
               <div className="text-lg mb-1">🎯</div>
-              <div className="text-sm font-medium text-primary-800">Promotions</div>
-              <div className="text-xs text-primary-500">Créer</div>
+              <div className="text-sm font-medium text-primary-800">Commandes</div>
+              <div className="text-xs text-primary-500">{reportData.orders.pending} en attente</div>
             </button>
           </div>
         </div>
