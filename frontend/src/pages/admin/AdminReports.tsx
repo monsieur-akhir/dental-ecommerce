@@ -31,8 +31,21 @@ interface ReportData {
 const AdminReports: React.FC = () => {
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [selectedPeriod, setSelectedPeriod] = useState<'7d' | '30d' | '90d' | '1y'>('30d');
+
+  // Fonction pour calculer le pourcentage de changement
+  const calculateChangePercentage = (current: number, previous: number): string => {
+    if (previous === 0) return current > 0 ? "+100%" : "0%";
+    const change = ((current - previous) / previous) * 100;
+    const sign = change >= 0 ? "+" : "";
+    return `${sign}${Math.round(change * 10) / 10}%`;
+  };
+
+  // Fonction pour obtenir les données de la période précédente (simulation)
+  const getPreviousPeriodData = (currentData: number): number => {
+    // Simulation basée sur les données actuelles
+    return Math.max(0, Math.floor(currentData * 0.8)); // 20% de réduction pour simuler
+  };
 
   useEffect(() => {
     fetchReportData();
@@ -141,28 +154,28 @@ const AdminReports: React.FC = () => {
         <StatCard
           title="Chiffre d'affaires"
           value={`${reportData.sales.total.toLocaleString()}€`}
-          change="+12.5%"
+          change={calculateChangePercentage(reportData.sales.total, getPreviousPeriodData(reportData.sales.total))}
           icon="💰"
           color="bg-green-100"
         />
         <StatCard
           title="Commandes"
           value={reportData.orders.total.toLocaleString()}
-          change="+8.3%"
+          change={calculateChangePercentage(reportData.orders.total, getPreviousPeriodData(reportData.orders.total))}
           icon="📦"
           color="bg-blue-100"
         />
         <StatCard
           title="Utilisateurs actifs"
           value={reportData.users.active.toLocaleString()}
-          change="+15.2%"
+          change={calculateChangePercentage(reportData.users.active, getPreviousPeriodData(reportData.users.active))}
           icon="👥"
           color="bg-purple-100"
         />
         <StatCard
           title="Produits en stock faible"
           value={reportData.products.lowStock.toString()}
-          change="-5.1%"
+          change={calculateChangePercentage(reportData.products.lowStock, getPreviousPeriodData(reportData.products.lowStock))}
           icon="⚠️"
           color="bg-yellow-100"
         />
@@ -173,15 +186,27 @@ const AdminReports: React.FC = () => {
         {/* Sales Chart */}
         <ChartCard title="Évolution des ventes">
           <div className="h-64 flex items-end justify-between space-x-2">
-            {reportData.sales.monthly.map((item, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div
-                  className="w-full bg-gradient-to-t from-primary-600 to-primary-400 rounded-t"
-                  style={{ height: `${(item.amount / 30000) * 200}px` }}
-                ></div>
-                <span className="text-xs text-primary-600 mt-2">{item.month}</span>
+            {reportData.sales.monthly.length > 0 ? (
+              reportData.sales.monthly.map((item, index) => {
+                const maxAmount = Math.max(...reportData.sales.monthly.map(m => m.amount));
+                const height = maxAmount > 0 ? (item.amount / maxAmount) * 200 : 0;
+                return (
+                  <div key={index} className="flex-1 flex flex-col items-center">
+                    <div
+                      className="w-full bg-gradient-to-t from-primary-600 to-primary-400 rounded-t transition-all duration-300 hover:from-primary-700 hover:to-primary-500"
+                      style={{ height: `${height}px` }}
+                      title={`${item.month}: ${item.amount.toLocaleString()}€`}
+                    ></div>
+                    <span className="text-xs text-primary-600 mt-2">{item.month}</span>
+                    <span className="text-xs text-primary-500">{item.amount.toLocaleString()}€</span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-sm text-primary-400">Aucune donnée disponible</p>
               </div>
-            ))}
+            )}
           </div>
           <div className="mt-4 text-center">
             <p className="text-sm text-primary-600">
@@ -193,37 +218,45 @@ const AdminReports: React.FC = () => {
         {/* Orders Chart */}
         <ChartCard title="Statut des commandes">
           <div className="h-64 flex items-center justify-center">
-            <div className="relative w-32 h-32">
-              <svg className="w-32 h-32 transform -rotate-90">
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  fill="transparent"
-                  className="text-primary-200"
-                />
-                <circle
-                  cx="64"
-                  cy="64"
-                  r="56"
-                  stroke="currentColor"
-                  strokeWidth="8"
-                  fill="transparent"
-                  strokeDasharray={`${(reportData.orders.completed / reportData.orders.total) * 352} 352`}
-                  className="text-green-500"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-primary-800">
-                    {Math.round((reportData.orders.completed / reportData.orders.total) * 100)}%
+            {reportData.orders.total > 0 ? (
+              <div className="relative w-32 h-32">
+                <svg className="w-32 h-32 transform -rotate-90">
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    className="text-primary-200"
+                  />
+                  <circle
+                    cx="64"
+                    cy="64"
+                    r="56"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    strokeDasharray={`${(reportData.orders.completed / reportData.orders.total) * 352} 352`}
+                    className="text-green-500"
+                    style={{ transition: 'stroke-dasharray 0.5s ease-in-out' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-primary-800">
+                      {Math.round((reportData.orders.completed / reportData.orders.total) * 100)}%
+                    </div>
+                    <div className="text-sm text-primary-600">Complétées</div>
                   </div>
-                  <div className="text-sm text-primary-600">Complétées</div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center">
+                <div className="text-2xl font-bold text-primary-400">0%</div>
+                <div className="text-sm text-primary-400">Aucune commande</div>
+              </div>
+            )}
           </div>
           <div className="mt-4 grid grid-cols-3 gap-4 text-center">
             <div>
@@ -244,37 +277,64 @@ const AdminReports: React.FC = () => {
         {/* Top Products */}
         <ChartCard title="Produits les plus vendus">
           <div className="space-y-3">
-            {reportData.products.topSelling.map((product, index) => (
-              <div key={product.id} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                    <span className="text-sm font-bold text-primary-600">{index + 1}</span>
+            {reportData.products.topSelling.length > 0 ? (
+              reportData.products.topSelling.map((product, index) => {
+                const maxSales = Math.max(...reportData.products.topSelling.map(p => p.sales));
+                const percentage = maxSales > 0 ? (product.sales / maxSales) * 100 : 0;
+                return (
+                  <div key={product.id} className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1">
+                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                        <span className="text-sm font-bold text-primary-600">{index + 1}</span>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-primary-800">{product.name}</p>
+                        <div className="flex items-center space-x-2">
+                          <div className="flex-1 bg-primary-100 rounded-full h-2">
+                            <div 
+                              className="bg-primary-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${percentage}%` }}
+                            ></div>
+                          </div>
+                          <span className="text-xs text-primary-500">{product.sales} ventes</span>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-primary-800">{product.name}</p>
-                    <p className="text-xs text-primary-500">{product.sales} ventes</p>
-                  </div>
-                </div>
-                <div className="text-sm font-semibold text-primary-600">
-                  {product.sales}
-                </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-sm text-primary-400">Aucun produit vendu</p>
               </div>
-            ))}
+            )}
           </div>
         </ChartCard>
 
         {/* User Growth */}
         <ChartCard title="Croissance des utilisateurs">
           <div className="h-64 flex items-end justify-between space-x-2">
-            {reportData.users.monthly.map((item, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center">
-                <div
-                  className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t"
-                  style={{ height: `${(item.count / 150) * 200}px` }}
-                ></div>
-                <span className="text-xs text-primary-600 mt-2">{item.month}</span>
+            {reportData.users.monthly.length > 0 ? (
+              reportData.users.monthly.map((item, index) => {
+                const maxCount = Math.max(...reportData.users.monthly.map(u => u.count));
+                const height = maxCount > 0 ? (item.count / maxCount) * 200 : 0;
+                return (
+                  <div key={index} className="flex-1 flex flex-col items-center">
+                    <div
+                      className="w-full bg-gradient-to-t from-purple-600 to-purple-400 rounded-t transition-all duration-300 hover:from-purple-700 hover:to-purple-500"
+                      style={{ height: `${height}px` }}
+                      title={`${item.month}: ${item.count} utilisateurs`}
+                    ></div>
+                    <span className="text-xs text-primary-600 mt-2">{item.month}</span>
+                    <span className="text-xs text-primary-500">{item.count}</span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <p className="text-sm text-primary-400">Aucune donnée disponible</p>
               </div>
-            ))}
+            )}
           </div>
           <div className="mt-4 text-center">
             <p className="text-sm text-primary-600">
