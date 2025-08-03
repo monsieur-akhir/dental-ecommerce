@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
 import { emailConfig } from '../config/email.config';
 import { TemplateService } from './template.service';
+import { SmtpConfigService } from '../smtp-config/smtp-config.service';
 
 export interface EmailOptions {
   to: string;
@@ -15,45 +16,78 @@ export class EmailService {
   private readonly logger = new Logger(EmailService.name);
   private transporter: nodemailer.Transporter;
 
-  constructor(private readonly templateService: TemplateService) {
-    this.createTransporter();
+  constructor(
+    private readonly templateService: TemplateService,
+    private readonly smtpConfigService: SmtpConfigService
+  ) {
+    // Le transporteur sera créé lors du premier envoi d'email
   }
 
-  private createTransporter() {
-    this.logger.log(`🔧 Création du transporteur SMTP...`);
-    this.logger.log(`🔧 Host: ${emailConfig.host}`);
-    this.logger.log(`🔧 Port: ${emailConfig.port}`);
-    this.logger.log(`🔧 Username: ${emailConfig.username}`);
-    this.logger.log(`🔧 Secure: ${emailConfig.secure}`);
-    
-    this.transporter = nodemailer.createTransport({
-      service: 'gmail',
-      host: emailConfig.host,
-      port: emailConfig.port,
-      secure: emailConfig.secure,
-      auth: {
-        user: emailConfig.username,
-        pass: emailConfig.password,
-      },
-    } as any);
+  private async createTransporter() {
+    try {
+      this.logger.log(`🔧 Création du transporteur SMTP...`);
+      
+      // Récupérer la configuration SMTP active depuis la base de données
+      const activeConfig = await this.smtpConfigService.getConfigForEmailService();
+      
+      this.logger.log(`🔧 Configuration active: ${activeConfig.host}:${activeConfig.port}`);
+      this.logger.log(`🔧 Username: ${activeConfig.username}`);
+      this.logger.log(`🔧 Secure: ${activeConfig.secure}`);
+      
+      this.transporter = nodemailer.createTransport({
+        host: activeConfig.host,
+        port: activeConfig.port,
+        secure: activeConfig.secure,
+        auth: {
+          user: activeConfig.username,
+          pass: activeConfig.password,
+        },
+        connectionTimeout: activeConfig.connectionTimeout,
+        timeout: activeConfig.timeout,
+        writeTimeout: activeConfig.writeTimeout,
+        debug: activeConfig.debug,
+        logger: activeConfig.debug ? this.logger : false,
+      } as any);
+      
+      this.logger.log(`✅ Transporteur SMTP créé avec succès !`);
+    } catch (error) {
+      this.logger.error(`❌ Erreur lors de la création du transporteur SMTP: ${error.message}`);
+      // Fallback vers la configuration par défaut
+      this.logger.log(`🔄 Utilisation de la configuration par défaut...`);
+      
+      this.transporter = nodemailer.createTransport({
+        host: emailConfig.host,
+        port: emailConfig.port,
+        secure: emailConfig.secure,
+        auth: {
+          user: emailConfig.username,
+          pass: emailConfig.password,
+        },
+      } as any);
+    }
   }
 
   // Méthode pour tester la connexion SMTP
   async testConnection(): Promise<{ success: boolean; message: string; details?: any }> {
     try {
       this.logger.log(`🧪 Test de connexion SMTP...`);
-      this.logger.log(`🔧 Configuration: ${emailConfig.host}:${emailConfig.port}`);
+      
+      // Recréer le transporteur avec la configuration active
+      await this.createTransporter();
       
       await this.transporter.verify();
+      
+      // Récupérer la configuration active pour les détails
+      const activeConfig = await this.smtpConfigService.getConfigForEmailService();
       
       this.logger.log(`✅ Connexion SMTP réussie !`);
       return {
         success: true,
         message: 'Connexion SMTP réussie',
         details: {
-          host: emailConfig.host,
-          port: emailConfig.port,
-          username: emailConfig.username
+          host: activeConfig.host,
+          port: activeConfig.port,
+          username: activeConfig.username
         }
       };
     } catch (error) {
@@ -67,38 +101,53 @@ export class EmailService {
         message: `Échec de la connexion SMTP: ${error.message}`,
         details: {
           code: error.code,
-          name: error.name,
-          host: emailConfig.host,
-          port: emailConfig.port,
-          username: emailConfig.username
+          name: error.name
         }
       };
     }
   }
 
   async sendEmail(options: EmailOptions): Promise<{ success: boolean; message: string; details?: any }> {
+    const startTime = Date.now();
+    const emailId = Math.random().toString(36).substring(2, 15);
+    
     try {
-      this.logger.log(`📧 Tentative d'envoi d'email à ${options.to}`);
-      this.logger.log(`📧 Sujet: ${options.subject}`);
-      this.logger.log(`📧 Configuration SMTP: ${emailConfig.host}:${emailConfig.port}`);
-      this.logger.log(`📧 Utilisateur SMTP: ${emailConfig.username}`);
+      this.logger.log(`📧 [${emailId}] Début d'envoi d'email à ${options.to}`);
+      this.logger.log(`📧 [${emailId}] Sujet: ${options.subject}`);
+      this.logger.log(`📧 [${emailId}] Taille du contenu HTML: ${options.html.length} caractères`);
+      
+      // Recréer le transporteur avec la configuration active
+      this.logger.log(`🔧 [${emailId}] Création du transporteur SMTP...`);
+      await this.createTransporter();
+      
+      // Récupérer la configuration active
+      const activeConfig = await this.smtpConfigService.getConfigForEmailService();
+      
+      this.logger.log(`📧 [${emailId}] Configuration SMTP: ${activeConfig.host}:${activeConfig.port}`);
+      this.logger.log(`📧 [${emailId}] Utilisateur SMTP: ${activeConfig.username}`);
+      this.logger.log(`📧 [${emailId}] Mode sécurisé: ${activeConfig.secure ? 'Oui' : 'Non'}`);
 
       const mailOptions = {
-        from: `"Dental E-commerce" <${emailConfig.username}>`,
+        from: `"Dental E-commerce" <${activeConfig.username}>`,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text,
       };
 
-      this.logger.log(`📤 Envoi en cours...`);
+      this.logger.log(`📤 [${emailId}] Envoi en cours...`);
+      const sendStartTime = Date.now();
       const result = await this.transporter.sendMail(mailOptions);
+      const sendDuration = Date.now() - sendStartTime;
+      const totalDuration = Date.now() - startTime;
       
-      this.logger.log(`✅ Email envoyé avec succès à ${options.to}`);
-      this.logger.log(`📨 Message ID: ${result.messageId}`);
-      this.logger.log(`📬 Destinataires acceptés: ${result.accepted.join(', ')}`);
-      this.logger.log(`📭 Destinataires rejetés: ${result.rejected.join(', ')}`);
-      this.logger.log(`📊 Réponse du serveur: ${result.response}`);
+      this.logger.log(`✅ [${emailId}] Email envoyé avec succès à ${options.to}`);
+      this.logger.log(`📨 [${emailId}] Message ID: ${result.messageId}`);
+      this.logger.log(`📬 [${emailId}] Destinataires acceptés: ${result.accepted.join(', ')}`);
+      this.logger.log(`📭 [${emailId}] Destinataires rejetés: ${result.rejected.join(', ')}`);
+      this.logger.log(`📊 [${emailId}] Réponse du serveur: ${result.response}`);
+      this.logger.log(`⏱️ [${emailId}] Durée d'envoi: ${sendDuration}ms`);
+      this.logger.log(`⏱️ [${emailId}] Durée totale: ${totalDuration}ms`);
       
       return {
         success: true,
@@ -107,25 +156,32 @@ export class EmailService {
           messageId: result.messageId,
           accepted: result.accepted,
           rejected: result.rejected,
-          response: result.response
+          response: result.response,
+          sendDuration,
+          totalDuration
         }
       };
     } catch (error) {
-      this.logger.error(`❌ Erreur lors de l'envoi d'email à ${options.to}:`);
-      this.logger.error(`❌ Type d'erreur: ${error.name}`);
-      this.logger.error(`❌ Message d'erreur: ${error.message}`);
-      this.logger.error(`❌ Code d'erreur: ${error.code}`);
-      this.logger.error(`❌ Stack trace: ${error.stack}`);
+      const totalDuration = Date.now() - startTime;
+      
+      this.logger.error(`❌ [${emailId}] Erreur lors de l'envoi d'email à ${options.to}:`);
+      this.logger.error(`❌ [${emailId}] Type d'erreur: ${error.name}`);
+      this.logger.error(`❌ [${emailId}] Message d'erreur: ${error.message}`);
+      this.logger.error(`❌ [${emailId}] Code d'erreur: ${error.code}`);
+      this.logger.error(`❌ [${emailId}] Durée avant erreur: ${totalDuration}ms`);
+      this.logger.error(`❌ [${emailId}] Stack trace: ${error.stack}`);
       
       // Logs spécifiques selon le type d'erreur
       if (error.code === 'EAUTH') {
-        this.logger.error(`🔐 Erreur d'authentification SMTP - Vérifiez EMAIL_USERNAME et EMAIL_PASSWORD`);
+        this.logger.error(`🔐 [${emailId}] Erreur d'authentification SMTP - Vérifiez les identifiants SMTP`);
       } else if (error.code === 'ECONNECTION') {
-        this.logger.error(`🌐 Erreur de connexion SMTP - Vérifiez EMAIL_HOST et EMAIL_PORT`);
+        this.logger.error(`🌐 [${emailId}] Erreur de connexion SMTP - Vérifiez l'hôte et le port SMTP`);
       } else if (error.code === 'ETIMEDOUT') {
-        this.logger.error(`⏰ Timeout de connexion SMTP - Vérifiez votre connexion internet`);
+        this.logger.error(`⏰ [${emailId}] Timeout de connexion SMTP - Vérifiez votre connexion internet`);
       } else if (error.code === 'ENOTFOUND') {
-        this.logger.error(`🔍 Serveur SMTP introuvable - Vérifiez EMAIL_HOST`);
+        this.logger.error(`🔍 [${emailId}] Serveur SMTP introuvable - Vérifiez l'hôte SMTP`);
+      } else if (error.code === 'EAUTH') {
+        this.logger.error(`🔐 [${emailId}] Erreur d'authentification - Vérifiez username/password`);
       }
       
       return {
@@ -134,7 +190,8 @@ export class EmailService {
         details: {
           code: error.code,
           name: error.name,
-          stack: error.stack
+          stack: error.stack,
+          totalDuration
         }
       };
     }
@@ -312,10 +369,17 @@ export class EmailService {
 
   // Méthode pour tester la connexion avec une configuration spécifique
   async testConnectionWithConfig(config: any): Promise<{ success: boolean; message: string; details?: any }> {
+    const testId = Math.random().toString(36).substring(2, 15);
+    const startTime = Date.now();
+    
     try {
-      this.logger.log(`🧪 Test de connexion SMTP avec configuration personnalisée...`);
-      this.logger.log(`🔧 Configuration: ${config.host}:${config.port}`);
+      this.logger.log(`🧪 [${testId}] Test de connexion SMTP avec configuration personnalisée...`);
+      this.logger.log(`🔧 [${testId}] Configuration: ${config.host}:${config.port}`);
+      this.logger.log(`🔧 [${testId}] Username: ${config.username}`);
+      this.logger.log(`🔧 [${testId}] Secure: ${config.secure}`);
+      this.logger.log(`🔧 [${testId}] Timeout: ${config.timeout}ms`);
       
+      this.logger.log(`🔧 [${testId}] Création du transporteur temporaire...`);
       const tempTransporter = nodemailer.createTransport({
         service: 'gmail',
         host: config.host,
@@ -331,23 +395,31 @@ export class EmailService {
         debug: config.debug,
       } as any);
 
+      this.logger.log(`🔧 [${testId}] Test de vérification de la connexion...`);
       await tempTransporter.verify();
       
-      this.logger.log(`✅ Connexion SMTP réussie avec la configuration personnalisée !`);
+      const duration = Date.now() - startTime;
+      this.logger.log(`✅ [${testId}] Connexion SMTP réussie avec la configuration personnalisée !`);
+      this.logger.log(`⏱️ [${testId}] Durée du test: ${duration}ms`);
+      
       return {
         success: true,
         message: 'Connexion SMTP réussie avec la configuration personnalisée',
         details: {
           host: config.host,
           port: config.port,
-          username: config.username
+          username: config.username,
+          duration
         }
       };
     } catch (error) {
-      this.logger.error(`❌ Échec de la connexion SMTP avec configuration personnalisée:`);
-      this.logger.error(`❌ Type d'erreur: ${error.name}`);
-      this.logger.error(`❌ Message d'erreur: ${error.message}`);
-      this.logger.error(`❌ Code d'erreur: ${error.code}`);
+      const duration = Date.now() - startTime;
+      
+      this.logger.error(`❌ [${testId}] Échec de la connexion SMTP avec configuration personnalisée:`);
+      this.logger.error(`❌ [${testId}] Type d'erreur: ${error.name}`);
+      this.logger.error(`❌ [${testId}] Message d'erreur: ${error.message}`);
+      this.logger.error(`❌ [${testId}] Code d'erreur: ${error.code}`);
+      this.logger.error(`❌ [${testId}] Durée avant erreur: ${duration}ms`);
       
       return {
         success: false,
@@ -357,7 +429,8 @@ export class EmailService {
           name: error.name,
           host: config.host,
           port: config.port,
-          username: config.username
+          username: config.username,
+          duration
         }
       };
     }
@@ -365,9 +438,16 @@ export class EmailService {
 
   // Méthode pour envoyer un email de test avec une configuration spécifique
   async sendTestEmailWithConfig(config: any, testEmail: string): Promise<{ success: boolean; message: string; details?: any }> {
+    const testId = Math.random().toString(36).substring(2, 15);
+    const startTime = Date.now();
+    
     try {
-      this.logger.log(`🧪 Envoi d'email de test avec configuration personnalisée à ${testEmail}`);
+      this.logger.log(`🧪 [${testId}] Envoi d'email de test avec configuration personnalisée à ${testEmail}`);
+      this.logger.log(`🔧 [${testId}] Configuration: ${config.host}:${config.port}`);
+      this.logger.log(`🔧 [${testId}] Username: ${config.username}`);
+      this.logger.log(`🔧 [${testId}] Secure: ${config.secure}`);
       
+      this.logger.log(`🔧 [${testId}] Création du transporteur temporaire...`);
       const tempTransporter = nodemailer.createTransport({
         service: 'gmail',
         host: config.host,
@@ -398,15 +478,28 @@ export class EmailService {
         </div>
       `;
 
-      const result = await tempTransporter.sendMail({
+      this.logger.log(`📧 [${testId}] Préparation de l'email de test...`);
+      this.logger.log(`📧 [${testId}] Taille du contenu HTML: ${testHtml.length} caractères`);
+      
+      const mailOptions = {
         from: `"Test SMTP" <${config.username}>`,
         to: testEmail,
         subject: 'Test de Configuration SMTP - Dental E-commerce',
         html: testHtml,
-      });
+      };
 
-      this.logger.log(`✅ Email de test envoyé avec succès à ${testEmail}`);
-      this.logger.log(`📨 Message ID: ${result.messageId}`);
+      this.logger.log(`📤 [${testId}] Envoi de l'email de test...`);
+      const sendStartTime = Date.now();
+      const result = await tempTransporter.sendMail(mailOptions);
+      const sendDuration = Date.now() - sendStartTime;
+      const totalDuration = Date.now() - startTime;
+
+      this.logger.log(`✅ [${testId}] Email de test envoyé avec succès à ${testEmail}`);
+      this.logger.log(`📨 [${testId}] Message ID: ${result.messageId}`);
+      this.logger.log(`📬 [${testId}] Destinataires acceptés: ${result.accepted?.join(', ') || 'Aucun'}`);
+      this.logger.log(`📭 [${testId}] Destinataires rejetés: ${result.rejected?.join(', ') || 'Aucun'}`);
+      this.logger.log(`⏱️ [${testId}] Durée d'envoi: ${sendDuration}ms`);
+      this.logger.log(`⏱️ [${testId}] Durée totale: ${totalDuration}ms`);
 
       return {
         success: true,
@@ -415,14 +508,19 @@ export class EmailService {
           messageId: result.messageId,
           host: config.host,
           port: config.port,
-          username: config.username
+          username: config.username,
+          sendDuration,
+          totalDuration
         }
       };
     } catch (error) {
-      this.logger.error(`❌ Échec de l'envoi d'email de test avec configuration personnalisée:`);
-      this.logger.error(`❌ Type d'erreur: ${error.name}`);
-      this.logger.error(`❌ Message d'erreur: ${error.message}`);
-      this.logger.error(`❌ Code d'erreur: ${error.code}`);
+      const totalDuration = Date.now() - startTime;
+      
+      this.logger.error(`❌ [${testId}] Échec de l'envoi d'email de test avec configuration personnalisée:`);
+      this.logger.error(`❌ [${testId}] Type d'erreur: ${error.name}`);
+      this.logger.error(`❌ [${testId}] Message d'erreur: ${error.message}`);
+      this.logger.error(`❌ [${testId}] Code d'erreur: ${error.code}`);
+      this.logger.error(`❌ [${testId}] Durée avant erreur: ${totalDuration}ms`);
       
       return {
         success: false,
@@ -432,7 +530,8 @@ export class EmailService {
           name: error.name,
           host: config.host,
           port: config.port,
-          username: config.username
+          username: config.username,
+          totalDuration
         }
       };
     }

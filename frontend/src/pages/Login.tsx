@@ -13,7 +13,10 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  // Récupérer la redirection depuis l'URL ou le state
+  const searchParams = new URLSearchParams(location.search);
+  const redirectParam = searchParams.get('redirect');
+  const from = redirectParam || (location.state as any)?.from?.pathname || '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +25,9 @@ const Login: React.FC = () => {
 
     try {
       await login({ email, password });
-      navigate(from, { replace: true });
+      // Ajouter le paramètre fromLogin si on redirige vers le checkout
+      const redirectUrl = from === '/checkout' ? '/checkout?fromLogin=true' : from;
+      navigate(redirectUrl, { replace: true });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erreur de connexion');
     } finally {
@@ -48,6 +53,23 @@ const Login: React.FC = () => {
         <p className="text-center text-primary-600 mb-8">
           Connectez-vous à votre compte professionnel
         </p>
+        {redirectParam === '/checkout' && (
+          <div className="mb-6 p-4 bg-accent-50 border border-accent-200 rounded-xl">
+            <div className="flex items-center space-x-3">
+              <svg className="w-5 h-5 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
+              </svg>
+              <div>
+                <p className="text-sm font-medium text-accent-800">
+                  Finalisez votre commande
+                </p>
+                <p className="text-xs text-accent-700">
+                  Connectez-vous pour continuer votre achat
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
@@ -164,7 +186,7 @@ const Login: React.FC = () => {
                     Connexion en cours...
                   </div>
                 ) : (
-                  'Se connecter'
+                  redirectParam === '/checkout' ? 'Se connecter et continuer la commande' : 'Se connecter'
                 )}
               </button>
             </div>

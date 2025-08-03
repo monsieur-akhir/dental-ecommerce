@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import api from '../../services/api';
 
 interface Configuration {
   id: number;
@@ -37,23 +38,12 @@ const ConfigurationManager: React.FC = () => {
   const fetchConfigurations = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/config`, {
-        headers: {
-          'Authorization': `Bearer ${user?.token || ''}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors du chargement des configurations');
-      }
-
-      const data = await response.json();
-      setConfigurations(data);
+      const response = await api.get('/config');
+      setConfigurations(response.data);
       
       // Initialiser le formData avec les valeurs actuelles
       const initialFormData: ConfigurationFormData = {};
-      data.forEach((config: Configuration) => {
+      response.data.forEach((config: Configuration) => {
         initialFormData[config.key] = parseValue(config.value, config.valueType);
       });
       setFormData(initialFormData);
@@ -62,25 +52,16 @@ const ConfigurationManager: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.token]);
+  }, []);
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/config/categories/list`, {
-        headers: {
-          'Authorization': `Bearer ${user?.token || ''}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
+      const response = await api.get('/config/categories/list');
+      setCategories(response.data);
     } catch (err) {
       console.error('Erreur lors du chargement des catégories:', err);
     }
-  }, [user?.token]);
+  }, []);
 
   useEffect(() => {
     fetchConfigurations();
@@ -128,18 +109,7 @@ const ConfigurationManager: React.FC = () => {
       setError(null);
       setSuccess(null);
 
-      const response = await fetch(`${process.env.REACT_APP_API_URL}/api/config/multiple`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${user?.token || ''}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(formData)
-      });
-
-      if (!response.ok) {
-        throw new Error('Erreur lors de la sauvegarde');
-      }
+      await api.put('/config/multiple', formData);
 
       setSuccess('Configurations mises à jour avec succès !');
       

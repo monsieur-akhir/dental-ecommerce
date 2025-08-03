@@ -62,6 +62,12 @@ const AdminSidebar: React.FC = () => {
       description: 'Paramètres du site'
     },
     {
+      name: 'Configuration SMTP',
+      href: '/admin/smtp',
+      icon: '📧',
+      description: 'Paramètres d\'envoi d\'emails'
+    },
+    {
       name: 'Rapports',
       href: '/admin/reports',
       icon: '📈',

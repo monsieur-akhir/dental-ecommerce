@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User, AuthResponse, LoginData, RegisterData } from '../types';
 import { authService } from '../services/api';
+import { cartService } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -83,7 +84,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const logout = () => {
+  const logout = async () => {
+    // Sauvegarder le panier serveur dans le localStorage avant la déconnexion
+    try {
+      const serverCart = await cartService.getCart();
+      if (serverCart && serverCart.length > 0) {
+        localStorage.setItem('cart', JSON.stringify(serverCart));
+      }
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde du panier:', error);
+    }
+
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');

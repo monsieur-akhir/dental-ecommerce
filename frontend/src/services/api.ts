@@ -420,5 +420,33 @@ export const wishlistService = {
   },
 };
 
+// Services d'email
+export const emailService = {
+  sendOrderConfirmation: async (email: string, firstName: string, orderNumber: string, orderTotal: number): Promise<any> => {
+    const response = await api.post('/email/order-confirmation', {
+      email,
+      firstName,
+      orderNumber,
+      orderTotal
+    });
+    return response.data;
+  },
+
+  sendWelcomeEmail: async (email: string, firstName: string): Promise<any> => {
+    const response = await api.post('/email/welcome', { email, firstName });
+    return response.data;
+  },
+
+  sendPasswordReset: async (email: string, firstName: string): Promise<any> => {
+    const response = await api.post('/email/password-reset', { email, firstName });
+    return response.data;
+  },
+
+  testConnection: async (): Promise<any> => {
+    const response = await api.get('/email/test-connection');
+    return response.data;
+  },
+};
+
 export default api;
 

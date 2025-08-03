@@ -1,16 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { SmtpConfig } from '../entities';
+import { SmtpConfig } from '../entities/smtp-config.entity';
 import { CreateSmtpConfigDto, UpdateSmtpConfigDto } from './dto';
-import { EmailService } from '../email/email.service';
+import * as nodemailer from 'nodemailer';
 
 @Injectable()
 export class SmtpConfigService {
+  private readonly logger = new Logger(SmtpConfigService.name);
+
   constructor(
     @InjectRepository(SmtpConfig)
     private smtpConfigRepository: Repository<SmtpConfig>,
-    private emailService: EmailService,
   ) {}
 
   async create(createSmtpConfigDto: CreateSmtpConfigDto): Promise<SmtpConfig> {
@@ -81,31 +82,56 @@ export class SmtpConfigService {
   async testConnection(id: number): Promise<{ success: boolean; message: string; details?: any }> {
     const smtpConfig = await this.findOne(id);
     
-    // Créer une configuration temporaire pour le test
-    const tempConfig = {
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      username: smtpConfig.username,
-      password: smtpConfig.password,
-      secure: smtpConfig.secure,
-      auth: smtpConfig.auth,
-      starttls: smtpConfig.starttls,
-      connectionTimeout: smtpConfig.connectionTimeout,
-      timeout: smtpConfig.timeout,
-      writeTimeout: smtpConfig.writeTimeout,
-      debug: smtpConfig.debug,
-    };
-
+    this.logger.log(`🔧 Test de connexion SMTP - Configuration ID: ${id}`);
+    this.logger.log(`🔧 Host: ${smtpConfig.host}:${smtpConfig.port}`);
+    this.logger.log(`🔧 Username: ${smtpConfig.username}`);
+    this.logger.log(`🔧 Secure: ${smtpConfig.secure}`);
+    this.logger.log(`🔧 Timeout: ${smtpConfig.timeout}ms`);
+    
     try {
-      // Utiliser le service email pour tester la connexion
-      const result = await this.emailService.testConnectionWithConfig(tempConfig);
-      return result;
+      // Créer un transporteur temporaire pour le test
+      this.logger.log(`🔧 Création du transporteur SMTP...`);
+      const transporter = nodemailer.createTransport({
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.secure,
+        auth: {
+          user: smtpConfig.username,
+          pass: smtpConfig.password,
+        },
+        connectionTimeout: smtpConfig.connectionTimeout,
+        timeout: smtpConfig.timeout,
+        writeTimeout: smtpConfig.writeTimeout,
+        debug: smtpConfig.debug,
+      } as any);
+
+      // Tester la connexion
+      this.logger.log(`🔧 Test de vérification de la connexion...`);
+      await transporter.verify();
+      
+      this.logger.log(`✅ Connexion SMTP réussie pour ${smtpConfig.host}:${smtpConfig.port}`);
+      
+      return {
+        success: true,
+        message: 'Connexion SMTP réussie',
+        details: {
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          username: smtpConfig.username
+        }
+      };
     } catch (error) {
+      this.logger.error(`❌ Erreur lors du test de connexion SMTP: ${error.message}`);
+      this.logger.error(`❌ Code d'erreur: ${error.code}`);
+      this.logger.error(`❌ Nom de l'erreur: ${error.name}`);
+      
       return {
         success: false,
         message: `Erreur lors du test de connexion: ${error.message}`,
         details: {
           error: error.message,
+          code: error.code,
+          name: error.name,
           config: {
             host: smtpConfig.host,
             port: smtpConfig.port,
@@ -119,31 +145,96 @@ export class SmtpConfigService {
   async testEmail(id: number, testEmail: string): Promise<{ success: boolean; message: string; details?: any }> {
     const smtpConfig = await this.findOne(id);
     
-    // Créer une configuration temporaire pour le test
-    const tempConfig = {
-      host: smtpConfig.host,
-      port: smtpConfig.port,
-      username: smtpConfig.username,
-      password: smtpConfig.password,
-      secure: smtpConfig.secure,
-      auth: smtpConfig.auth,
-      starttls: smtpConfig.starttls,
-      connectionTimeout: smtpConfig.connectionTimeout,
-      timeout: smtpConfig.timeout,
-      writeTimeout: smtpConfig.writeTimeout,
-      debug: smtpConfig.debug,
-    };
-
+    this.logger.log(`📧 Test d'envoi d'email - Configuration ID: ${id}`);
+    this.logger.log(`📧 Destinataire: ${testEmail}`);
+    this.logger.log(`📧 Expéditeur: ${smtpConfig.username}`);
+    this.logger.log(`📧 Host: ${smtpConfig.host}:${smtpConfig.port}`);
+    
     try {
-      // Utiliser le service email pour envoyer un email de test
-      const result = await this.emailService.sendTestEmailWithConfig(tempConfig, testEmail);
-      return result;
+      // Créer un transporteur temporaire pour le test
+      this.logger.log(`🔧 Création du transporteur SMTP pour l'envoi...`);
+      const transporter = nodemailer.createTransport({
+        host: smtpConfig.host,
+        port: smtpConfig.port,
+        secure: smtpConfig.secure,
+        auth: {
+          user: smtpConfig.username,
+          pass: smtpConfig.password,
+        },
+        connectionTimeout: smtpConfig.connectionTimeout,
+        timeout: smtpConfig.timeout,
+        writeTimeout: smtpConfig.writeTimeout,
+        debug: smtpConfig.debug,
+      } as any);
+
+      // Envoyer un email de test
+      const mailOptions = {
+        from: `"Test SMTP" <${smtpConfig.username}>`,
+        to: testEmail,
+        subject: 'Test de configuration SMTP - Dental E-commerce',
+        html: `
+          <h2>Test de configuration SMTP</h2>
+          <p>Cet email confirme que votre configuration SMTP fonctionne correctement.</p>
+          <p><strong>Configuration utilisée :</strong></p>
+          <ul>
+            <li>Host: ${smtpConfig.host}</li>
+            <li>Port: ${smtpConfig.port}</li>
+            <li>Username: ${smtpConfig.username}</li>
+          </ul>
+          <p>Date du test: ${new Date().toLocaleString('fr-FR')}</p>
+        `,
+        text: `
+          Test de configuration SMTP
+          
+          Cet email confirme que votre configuration SMTP fonctionne correctement.
+          
+          Configuration utilisée :
+          - Host: ${smtpConfig.host}
+          - Port: ${smtpConfig.port}
+          - Username: ${smtpConfig.username}
+          
+          Date du test: ${new Date().toLocaleString('fr-FR')}
+        `
+      };
+
+      this.logger.log(`📧 Préparation de l'email de test...`);
+      this.logger.log(`📧 Sujet: ${mailOptions.subject}`);
+      this.logger.log(`📧 De: ${mailOptions.from}`);
+      this.logger.log(`📧 À: ${mailOptions.to}`);
+
+      this.logger.log(`📧 Envoi de l'email de test...`);
+      const result = await transporter.sendMail(mailOptions);
+      
+      this.logger.log(`✅ Email de test envoyé avec succès !`);
+      this.logger.log(`✅ Message ID: ${result.messageId}`);
+      this.logger.log(`✅ Acceptés: ${result.accepted?.length || 0}`);
+      this.logger.log(`✅ Rejetés: ${result.rejected?.length || 0}`);
+      
+      return {
+        success: true,
+        message: 'Email de test envoyé avec succès',
+        details: {
+          messageId: result.messageId,
+          accepted: result.accepted,
+          rejected: result.rejected,
+          host: smtpConfig.host,
+          port: smtpConfig.port,
+          username: smtpConfig.username
+        }
+      };
     } catch (error) {
+      this.logger.error(`❌ Erreur lors de l'envoi de l'email de test: ${error.message}`);
+      this.logger.error(`❌ Code d'erreur: ${error.code}`);
+      this.logger.error(`❌ Nom de l'erreur: ${error.name}`);
+      this.logger.error(`❌ Configuration utilisée: ${smtpConfig.host}:${smtpConfig.port}`);
+      
       return {
         success: false,
         message: `Erreur lors de l'envoi de l'email de test: ${error.message}`,
         details: {
           error: error.message,
+          code: error.code,
+          name: error.name,
           config: {
             host: smtpConfig.host,
             port: smtpConfig.port,

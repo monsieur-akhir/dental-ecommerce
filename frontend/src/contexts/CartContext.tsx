@@ -41,29 +41,54 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   // Charger le panier depuis le localStorage ou le serveur
   useEffect(() => {
     const loadCart = async () => {
+      console.log('🛒 Chargement du panier - Utilisateur connecté:', !!user);
+      
       if (user) {
-        // Si l'utilisateur est connecté, charger depuis le serveur
-        try {
-          const serverCart = await cartService.getCart();
-          setItems(serverCart);
-        } catch (error) {
-          console.error('Erreur lors du chargement du panier serveur:', error);
-          // Fallback vers le localStorage
-          const savedCart = localStorage.getItem('cart');
-          if (savedCart) {
-            try {
-              setItems(JSON.parse(savedCart));
-            } catch (error) {
-              console.error('Erreur lors du chargement du panier local:', error);
-            }
+        // Si l'utilisateur se connecte, fusionner le panier local avec le panier serveur
+        const savedCart = localStorage.getItem('cart');
+        let localCart: CartItem[] = [];
+        
+        console.log('🛒 Panier sauvegardé dans localStorage:', savedCart);
+        
+        if (savedCart) {
+          try {
+            localCart = JSON.parse(savedCart);
+            console.log('🛒 Panier local parsé:', localCart);
+          } catch (error) {
+            console.error('Erreur lors du chargement du panier local:', error);
           }
         }
+
+        // Pour l'instant, garder le panier local car les endpoints serveur ne sont pas encore implémentés
+        if (localCart.length > 0) {
+          console.log('🛒 Définition du panier avec', localCart.length, 'articles');
+          setItems(localCart);
+          addNotification({
+            type: 'success',
+            title: 'Panier conservé',
+            message: `Votre panier a été conservé lors de la connexion`,
+            duration: 3000
+          });
+        } else {
+          console.log('🛒 Aucun article dans le panier local');
+        }
+        
+        // TODO: Implémenter la synchronisation avec le serveur quand les endpoints seront disponibles
+        // try {
+        //   const serverCart = await cartService.getCart();
+        //   // Logique de fusion...
+        // } catch (error) {
+        //   console.error('Erreur lors du chargement du panier serveur:', error);
+        // }
       } else {
         // Si l'utilisateur n'est pas connecté, charger depuis le localStorage
         const savedCart = localStorage.getItem('cart');
+        console.log('🛒 Chargement panier non connecté:', savedCart);
         if (savedCart) {
           try {
-            setItems(JSON.parse(savedCart));
+            const parsedCart = JSON.parse(savedCart);
+            console.log('🛒 Panier non connecté parsé:', parsedCart);
+            setItems(parsedCart);
           } catch (error) {
             console.error('Erreur lors du chargement du panier:', error);
           }
@@ -74,16 +99,15 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
     loadCart();
   }, [user]);
 
-  // Sauvegarder le panier dans le localStorage et/ou le serveur à chaque modification
+  // Sauvegarder le panier dans le localStorage à chaque modification
   useEffect(() => {
-    // Toujours sauvegarder dans le localStorage pour les utilisateurs non connectés
+    // Toujours sauvegarder dans le localStorage pour la persistance
     localStorage.setItem('cart', JSON.stringify(items));
     
-    // Si l'utilisateur est connecté, synchroniser avec le serveur
-    if (user && items.length > 0) {
-      // Note: La synchronisation complète avec le serveur se fait dans les fonctions individuelles
-      // pour éviter les boucles infinies
-    }
+    // TODO: Synchroniser avec le serveur quand les endpoints seront disponibles
+    // if (user && items.length > 0) {
+    //   // Synchronisation avec le serveur
+    // }
   }, [items, user]);
 
   const addToCart = async (product: Product, quantity: number = 1) => {
@@ -104,15 +128,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
         }
       });
 
-      // Si l'utilisateur est connecté, synchroniser avec le serveur
-      if (user) {
-        try {
-          await cartService.addToCart(product.id, quantity);
-        } catch (error) {
-          console.error('Erreur lors de la synchronisation avec le serveur:', error);
-          // L'état local reste inchangé même si la synchronisation échoue
-        }
-      }
+      // TODO: Synchroniser avec le serveur quand les endpoints seront disponibles
+      // if (user) {
+      //   try {
+      //     await cartService.addToCart(product.id, quantity);
+      //   } catch (error) {
+      //     console.error('Erreur lors de la synchronisation avec le serveur:', error);
+      //   }
+      // }
 
       // Afficher une notification de succès
       addNotification({
@@ -129,14 +152,14 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
   const removeFromCart = async (productId: number) => {
     setItems(currentItems => currentItems.filter(item => item.product.id !== productId));
     
-    // Si l'utilisateur est connecté, synchroniser avec le serveur
-    if (user) {
-      try {
-        await cartService.removeFromCart(productId);
-      } catch (error) {
-        console.error('Erreur lors de la suppression côté serveur:', error);
-      }
-    }
+    // TODO: Synchroniser avec le serveur quand les endpoints seront disponibles
+    // if (user) {
+    //   try {
+    //     await cartService.removeFromCart(productId);
+    //   } catch (error) {
+    //     console.error('Erreur lors de la suppression côté serveur:', error);
+    //   }
+    // }
   };
 
   const updateQuantity = async (productId: number, quantity: number) => {
@@ -153,27 +176,27 @@ export const CartProvider: React.FC<CartProviderProps> = ({ children }) => {
       )
     );
 
-    // Si l'utilisateur est connecté, synchroniser avec le serveur
-    if (user) {
-      try {
-        await cartService.updateCartItem(productId, quantity);
-      } catch (error) {
-        console.error('Erreur lors de la mise à jour côté serveur:', error);
-      }
-    }
+    // TODO: Synchroniser avec le serveur quand les endpoints seront disponibles
+    // if (user) {
+    //   try {
+    //     await cartService.updateCartItem(productId, quantity);
+    //   } catch (error) {
+    //     console.error('Erreur lors de la mise à jour côté serveur:', error);
+    //   }
+    // }
   };
 
   const clearCart = async () => {
     setItems([]);
     
-    // Si l'utilisateur est connecté, synchroniser avec le serveur
-    if (user) {
-      try {
-        await cartService.clearCart();
-      } catch (error) {
-        console.error('Erreur lors du vidage côté serveur:', error);
-      }
-    }
+    // TODO: Synchroniser avec le serveur quand les endpoints seront disponibles
+    // if (user) {
+    //   try {
+    //     await cartService.clearCart();
+    //   } catch (error) {
+    //     console.error('Erreur lors du vidage côté serveur:', error);
+    //   }
+    // }
   };
 
   const getTotalItems = () => {

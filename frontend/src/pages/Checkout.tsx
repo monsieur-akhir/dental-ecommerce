@@ -1,17 +1,33 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
-import { orderService } from '../services/api';
+import { orderService, emailService } from '../services/api';
 import { PaymentMethod } from '../types';
+import configService from '../services/configService';
+import OrderConfirmationModal from '../components/OrderConfirmationModal';
 
 const Checkout: React.FC = () => {
   const { items, getTotalPrice, clearCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [checkoutConfig, setCheckoutConfig] = useState({
+    taxRate: 20,
+    taxName: 'TVA',
+    currencySymbol: '€'
+  });
+
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [orderConfirmation, setOrderConfirmation] = useState({
+    orderNumber: '',
+    totalAmount: 0,
+    email: ''
+  });
 
   const [formData, setFormData] = useState({
     paymentMethod: 'cash_on_delivery' as PaymentMethod,
@@ -26,6 +42,35 @@ const Checkout: React.FC = () => {
     notes: '',
     useSameAddress: true,
   });
+
+  // Charger la configuration du checkout
+  useEffect(() => {
+    const loadCheckoutConfig = async () => {
+      try {
+        const config = await configService.getPublicConfigs();
+        setCheckoutConfig({
+          taxRate: parseFloat(config.tax_rate) || 20,
+          taxName: config.tax_name || 'TVA',
+          currencySymbol: config.currency_symbol || '€'
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement de la configuration du checkout:', error);
+      }
+    };
+
+    loadCheckoutConfig();
+  }, []);
+
+  // Afficher le message de bienvenue si l'utilisateur vient de se connecter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const fromLogin = searchParams.get('fromLogin');
+    if (fromLogin === 'true') {
+      setShowWelcomeMessage(true);
+      // Masquer le message après 5 secondes
+      setTimeout(() => setShowWelcomeMessage(false), 5000);
+    }
+  }, [location]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target;
@@ -66,17 +111,41 @@ const Checkout: React.FC = () => {
       // Vider le panier seulement après la création réussie de la commande
       if (order && order.id) {
         clearCart();
+        
+        // Envoyer l'email de confirmation
+        if (user?.email && user?.firstName) {
+          try {
+            await emailService.sendOrderConfirmation(
+              user.email,
+              user.firstName,
+              order.orderNumber || `CMD-${order.id}`,
+              Number(order.totalAmount || total)
+            );
+          } catch (error) {
+            console.error('Erreur lors de l\'envoi de l\'email de confirmation:', error);
+            // Ne pas bloquer l'affichage de la popup même si l'email échoue
+          }
+        }
+        
+        // Afficher la popup de confirmation
+        setOrderConfirmation({
+          orderNumber: order.orderNumber || `CMD-${order.id}`,
+          totalAmount: Number(order.totalAmount || total),
+          email: user?.email || ''
+        });
+        setShowConfirmationModal(true);
       }
-      
-      // Navigation vers la page de confirmation
-      navigate(`/orders/${order.id}`, { 
-        state: { message: 'Commande passée avec succès!' }
-      });
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erreur lors de la création de la commande');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCloseConfirmationModal = () => {
+    setShowConfirmationModal(false);
+    // Rediriger vers la page d'accueil après fermeture de la popup
+    navigate('/');
   };
 
   if (items.length === 0) {
@@ -85,32 +154,50 @@ const Checkout: React.FC = () => {
   }
 
   const subtotal = getTotalPrice();
-  const tax = subtotal * 0.2;
+  const tax = subtotal * (checkoutConfig.taxRate / 100);
   const total = subtotal + tax;
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-secondary-50 py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Finaliser la commande</h1>
+          <h1 className="text-3xl font-display font-bold text-primary-800 mb-8">Finaliser la commande</h1>
+          
+          {showWelcomeMessage && (
+            <div className="mb-6 p-4 bg-success-50 border border-success-200 rounded-xl">
+              <div className="flex items-center space-x-3">
+                <svg className="w-5 h-5 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div>
+                  <p className="text-sm font-medium text-success-800">
+                    Bienvenue ! Votre panier a été synchronisé
+                  </p>
+                  <p className="text-xs text-success-700">
+                    Vous pouvez maintenant finaliser votre commande
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Formulaire */}
               <div className="lg:col-span-2 space-y-6">
                 {error && (
-                  <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
+                  <div className="bg-error-50 border border-error-200 text-error-600 px-4 py-3 rounded-xl">
                     {error}
                   </div>
                 )}
 
                 {/* Informations de livraison */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold mb-4">Adresse de livraison</h2>
+                <div className="bg-white rounded-2xl shadow-soft p-6">
+                  <h2 className="text-lg font-semibold text-primary-800 mb-4">Adresse de livraison</h2>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-primary-700 mb-2">
                         Adresse *
                       </label>
                       <input
@@ -119,12 +206,12 @@ const Checkout: React.FC = () => {
                         required
                         value={formData.shippingAddress}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-primary-700 mb-2">
                         Ville *
                       </label>
                       <input
@@ -133,12 +220,12 @@ const Checkout: React.FC = () => {
                         required
                         value={formData.shippingCity}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-primary-700 mb-2">
                         Code postal *
                       </label>
                       <input
@@ -147,12 +234,12 @@ const Checkout: React.FC = () => {
                         required
                         value={formData.shippingPostalCode}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                       />
                     </div>
 
                     <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <label className="block text-sm font-semibold text-primary-700 mb-2">
                         Pays *
                       </label>
                       <input
@@ -161,16 +248,16 @@ const Checkout: React.FC = () => {
                         required
                         value={formData.shippingCountry}
                         onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                       />
                     </div>
                   </div>
                 </div>
 
                 {/* Adresse de facturation */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="bg-white rounded-2xl shadow-soft p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold">Adresse de facturation</h2>
+                    <h2 className="text-lg font-semibold text-primary-800">Adresse de facturation</h2>
                     <label className="flex items-center">
                       <input
                         type="checkbox"
@@ -245,8 +332,8 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Mode de paiement */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold mb-4">Mode de paiement</h2>
+                <div className="bg-white rounded-2xl shadow-soft p-6">
+                  <h2 className="text-lg font-semibold text-primary-800 mb-4">Mode de paiement</h2>
                   
                   <div className="space-y-3">
                     <label className="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
@@ -297,23 +384,23 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Notes */}
-                <div className="bg-white rounded-lg shadow-sm p-6">
-                  <h2 className="text-lg font-semibold mb-4">Notes de commande (optionnel)</h2>
+                <div className="bg-white rounded-2xl shadow-soft p-6">
+                  <h2 className="text-lg font-semibold text-primary-800 mb-4">Notes de commande (optionnel)</h2>
                   <textarea
                     name="notes"
                     value={formData.notes}
                     onChange={handleChange}
                     rows={3}
                     placeholder="Instructions spéciales pour la livraison..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors"
                   />
                 </div>
               </div>
 
               {/* Résumé de commande */}
               <div className="lg:col-span-1">
-                <div className="bg-white rounded-lg shadow-sm p-6 sticky top-4">
-                  <h2 className="text-lg font-semibold mb-4">Résumé de commande</h2>
+                <div className="bg-white rounded-2xl shadow-soft p-6 sticky top-4">
+                  <h2 className="text-lg font-semibold text-primary-800 mb-4">Résumé de commande</h2>
 
                   {/* Articles */}
                   <div className="space-y-3 mb-6">
@@ -324,7 +411,7 @@ const Checkout: React.FC = () => {
                           <div className="text-gray-600">Qté: {item.quantity}</div>
                         </div>
                         <div className="font-medium">
-                          {(Number(item.product.price || 0) * item.quantity).toFixed(2)} €
+                          {(Number(item.product.price || 0) * item.quantity).toFixed(2)} {checkoutConfig.currencySymbol}
                         </div>
                       </div>
                     ))}
@@ -336,27 +423,27 @@ const Checkout: React.FC = () => {
                   <div className="space-y-2 mb-6">
                     <div className="flex justify-between">
                       <span>Sous-total</span>
-                      <span>{Number(subtotal || 0).toFixed(2)} €</span>
+                      <span>{Number(subtotal || 0).toFixed(2)} {checkoutConfig.currencySymbol}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Livraison</span>
                       <span className="text-green-600">Gratuite</span>
                     </div>
                     <div className="flex justify-between">
-                      <span>TVA (20%)</span>
-                      <span>{Number(tax || 0).toFixed(2)} €</span>
+                      <span>{checkoutConfig.taxName} ({checkoutConfig.taxRate}%)</span>
+                      <span>{Number(tax || 0).toFixed(2)} {checkoutConfig.currencySymbol}</span>
                     </div>
                     <hr />
                     <div className="flex justify-between text-lg font-semibold">
                       <span>Total</span>
-                      <span>{Number(total || 0).toFixed(2)} €</span>
+                      <span>{Number(total || 0).toFixed(2)} {checkoutConfig.currencySymbol}</span>
                     </div>
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full btn btn-primary btn-lg disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <div className="flex items-center justify-center">
@@ -373,6 +460,15 @@ const Checkout: React.FC = () => {
           </form>
         </div>
       </div>
+
+      {/* Modal de confirmation de commande */}
+      <OrderConfirmationModal
+        isOpen={showConfirmationModal}
+        onClose={handleCloseConfirmationModal}
+        orderNumber={orderConfirmation.orderNumber}
+        totalAmount={orderConfirmation.totalAmount}
+        email={orderConfirmation.email}
+      />
     </div>
   );
 };

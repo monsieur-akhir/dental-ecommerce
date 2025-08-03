@@ -156,7 +156,32 @@ const SmtpConfigPage: React.FC = () => {
     const presets = smtpConfigService.getPresetConfigs();
     const preset = presets[presetName as keyof typeof presets];
     if (preset) {
-      setFormData(prev => ({ ...prev, ...preset }));
+      // Pré-remplir avec les valeurs par défaut selon le preset
+      let defaultValues = {
+        ...preset,
+        username: '',
+        password: '',
+        adminEmail: '',
+        description: preset.description
+      };
+
+      // Valeurs spécifiques pour certaines configurations
+      if (presetName === 'synelia') {
+        defaultValues = {
+          ...defaultValues,
+          username: 'backend.synelia@synelia.tech',
+          password: 'Backensynelia2024#09',
+          adminEmail: 'backend.synelia@synelia.tech',
+          description: 'Configuration Synelia Tech - Serveur mail personnalisé'
+        };
+      } else if (presetName === 'custom') {
+        defaultValues = {
+          ...defaultValues,
+          description: 'Configuration SMTP personnalisée - Veuillez remplir les paramètres'
+        };
+      }
+
+      setFormData(prev => ({ ...prev, ...defaultValues }));
     }
   };
 
@@ -246,15 +271,33 @@ const SmtpConfigPage: React.FC = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Configurations prédéfinies
                 </label>
-                <div className="flex gap-2">
-                  {Object.keys(smtpConfigService.getPresetConfigs()).map(preset => (
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(smtpConfigService.getPresetConfigs()).map(([key, preset]) => (
                     <button
-                      key={preset}
+                      key={key}
                       type="button"
-                      onClick={() => loadPreset(preset)}
-                      className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded"
+                      onClick={() => loadPreset(key)}
+                      className="px-4 py-2 text-sm bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg transition-colors"
+                      title={preset.description}
                     >
-                      {preset.charAt(0).toUpperCase() + preset.slice(1)}
+                      <div className="flex items-center space-x-2">
+                                                 <span className="text-lg">
+                           {key === 'gmail' && '📧'}
+                           {key === 'outlook' && '📧'}
+                           {key === 'yahoo' && '📧'}
+                           {key === 'sendgrid' && '📧'}
+                           {key === 'synelia' && '🏢'}
+                           {key === 'custom' && '⚙️'}
+                         </span>
+                         <span className="font-medium">
+                           {key === 'gmail' && 'Gmail'}
+                           {key === 'outlook' && 'Outlook'}
+                           {key === 'yahoo' && 'Yahoo'}
+                           {key === 'sendgrid' && 'SendGrid'}
+                           {key === 'synelia' && 'Synelia'}
+                           {key === 'custom' && 'Personnalisé'}
+                         </span>
+                      </div>
                     </button>
                   ))}
                 </div>

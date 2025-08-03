@@ -11,6 +11,7 @@ import AdminPromotions from '../pages/admin/AdminPromotions';
 import AdminReports from '../pages/admin/AdminReports';
 import AdminNotifications from '../pages/admin/AdminNotifications';
 import AdminSystem from '../pages/admin/AdminSystem';
+import SmtpConfigPage from '../pages/admin/SmtpConfig';
 
 const AdminLayout: React.FC = () => {
   return (
@@ -53,6 +54,7 @@ const AdminLayout: React.FC = () => {
             <Route path="/orders" element={<AdminOrders />} />
             <Route path="/users" element={<AdminUsers />} />
             <Route path="/config" element={<ConfigurationManager />} />
+            <Route path="/smtp" element={<SmtpConfigPage />} />
             <Route path="/promotions" element={<AdminPromotions />} />
             <Route path="/reports" element={<AdminReports />} />
             <Route path="/notifications" element={<AdminNotifications />} />

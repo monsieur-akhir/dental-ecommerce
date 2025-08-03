@@ -461,7 +461,7 @@ const Profile: React.FC = () => {
                               <p className="text-sm text-primary-500">Commande du {new Date(order.date).toLocaleDateString('fr-FR')}</p>
                             </div>
                             <div className="text-right">
-                              <p className="text-lg font-bold text-primary-800">{order.total.toFixed(2)} €</p>
+                              <p className="text-lg font-bold text-primary-800">{Number(order.total || 0).toFixed(2)} €</p>
                               {getStatusBadge(order.status)}
                             </div>
                           </div>

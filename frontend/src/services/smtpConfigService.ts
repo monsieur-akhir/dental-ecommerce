@@ -151,6 +151,30 @@ class SmtpConfigService {
         writeTimeout: 5000,
         debug: false,
         description: 'Configuration SendGrid'
+      },
+      synelia: {
+        host: 'mail.synelia.tech',
+        port: 587,
+        secure: false,
+        auth: true,
+        starttls: true,
+        connectionTimeout: 5000,
+        timeout: 3000,
+        writeTimeout: 5000,
+        debug: false,
+        description: 'Configuration Synelia Tech'
+      },
+      custom: {
+        host: '',
+        port: 587,
+        secure: false,
+        auth: true,
+        starttls: true,
+        connectionTimeout: 5000,
+        timeout: 3000,
+        writeTimeout: 5000,
+        debug: false,
+        description: 'Configuration personnalisée'
       }
     };
   }

@@ -1,14 +1,39 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useWishlist } from '../contexts/WishlistContext';
 import { getImageUrl, handleImageError } from '../utils/imageUtils';
+import configService from '../services/configService';
 
 const Cart: React.FC = () => {
   const { cart, removeFromCart, updateQuantity, getTotalItems, getTotalPrice, clearCart } = useCart();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [cartConfig, setCartConfig] = useState({
+    freeShippingThreshold: 50,
+    shippingCost: 8.90,
+    currencySymbol: '€'
+  });
+
+  // Charger la configuration du panier
+  useEffect(() => {
+    const loadCartConfig = async () => {
+      try {
+        const config = await configService.getPublicConfigs();
+        setCartConfig({
+          freeShippingThreshold: parseFloat(config.free_shipping_threshold) || 50,
+          shippingCost: parseFloat(config.shipping_cost) || 8.90,
+          currencySymbol: config.currency_symbol || '€'
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement de la configuration du panier:', error);
+      }
+    };
+
+    loadCartConfig();
+  }, []);
 
   const handleQuantityChange = (productId: number, newQuantity: number) => {
     if (newQuantity > 0) {
@@ -20,12 +45,15 @@ const Cart: React.FC = () => {
 
   const handleCheckout = async () => {
     if (!user) {
-      // Rediriger vers la connexion
-      window.location.href = '/login?redirect=/cart';
+      // Sauvegarder le panier avant la redirection pour éviter qu'il se perde
+      localStorage.setItem('cart', JSON.stringify(cart));
+      // Rediriger vers la connexion avec redirection vers le checkout
+      navigate('/login?redirect=/checkout');
       return;
     }
     setLoading(true);
-    // Logique de checkout
+    // Rediriger vers le checkout
+    navigate('/checkout');
     setLoading(false);
   };
 
@@ -219,12 +247,14 @@ const Cart: React.FC = () => {
                 </div>
                 <div className="flex justify-between text-primary-600">
                   <span>Livraison</span>
-                  <span className="text-success-600 font-medium">Gratuite</span>
+                  <span className={getTotalPrice() >= cartConfig.freeShippingThreshold ? "text-success-600 font-medium" : "text-primary-600"}>
+                    {getTotalPrice() >= cartConfig.freeShippingThreshold ? "Gratuite" : `${cartConfig.currencySymbol}${cartConfig.shippingCost.toFixed(2)}`}
+                  </span>
                 </div>
                 <div className="border-t border-primary-100 pt-4">
                   <div className="flex justify-between text-lg font-bold text-primary-800">
                     <span>Total</span>
-                    <span>{formatPrice(getTotalPrice())}</span>
+                    <span>{formatPrice(getTotalPrice() + (getTotalPrice() >= cartConfig.freeShippingThreshold ? 0 : cartConfig.shippingCost))}</span>
                   </div>
                 </div>
               </div>
@@ -261,9 +291,32 @@ const Cart: React.FC = () => {
                   <svg className="w-5 h-5 text-success-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-primary-800">Livraison gratuite</p>
-                    <p className="text-xs text-primary-600">Pour toute commande supérieure à 50€</p>
+                    <p className="text-xs text-primary-600">
+                      Pour toute commande supérieure à {cartConfig.currencySymbol}{cartConfig.freeShippingThreshold.toFixed(2)}
+                    </p>
+                    
+                    {/* Barre de progression vers la livraison gratuite */}
+                    {getTotalPrice() < cartConfig.freeShippingThreshold && (
+                      <div className="mt-2">
+                        <div className="flex justify-between text-xs text-primary-600 mb-1">
+                          <span>Progression</span>
+                          <span>{cartConfig.currencySymbol}{getTotalPrice().toFixed(2)} / {cartConfig.currencySymbol}{cartConfig.freeShippingThreshold.toFixed(2)}</span>
+                        </div>
+                        <div className="w-full bg-primary-200 rounded-full h-2">
+                          <div 
+                            className="bg-success-500 h-2 rounded-full transition-all duration-300"
+                            style={{ 
+                              width: `${Math.min((getTotalPrice() / cartConfig.freeShippingThreshold) * 100, 100)}%` 
+                            }}
+                          ></div>
+                        </div>
+                        <p className="text-xs text-success-600 mt-1">
+                          Plus que {cartConfig.currencySymbol}{(cartConfig.freeShippingThreshold - getTotalPrice()).toFixed(2)} pour la livraison gratuite !
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
