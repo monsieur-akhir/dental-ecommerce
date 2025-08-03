@@ -203,27 +203,47 @@ export class OrdersService {
     pendingOrders: number;
     completedOrders: number;
   }> {
-    const totalOrders = await this.orderRepository.count();
-    const pendingOrders = await this.orderRepository.count({
-      where: { status: OrderStatus.PENDING },
-    });
-    const completedOrders = await this.orderRepository.count({
-      where: { status: OrderStatus.DELIVERED },
-    });
+    try {
+      // Statistiques de base
+      const totalOrders = await this.orderRepository.count();
+      const pendingOrders = await this.orderRepository.count({
+        where: { status: OrderStatus.PENDING },
+      });
+      const completedOrders = await this.orderRepository.count({
+        where: { status: OrderStatus.DELIVERED },
+      });
 
-    const revenueResult = await this.orderRepository
-      .createQueryBuilder('order')
-      .select('SUM(order.totalAmount)', 'total')
-      .where('order.status != :status', { status: OrderStatus.CANCELLED })
-      .getRawOne();
+      // Calcul du chiffre d'affaires (excluant les commandes annulées)
+      const revenueResult = await this.orderRepository
+        .createQueryBuilder('order')
+        .select('COALESCE(SUM(order.totalAmount), 0)', 'total')
+        .where('order.status != :status', { status: OrderStatus.CANCELLED })
+        .getRawOne();
 
-    const totalRevenue = parseFloat(revenueResult.total) || 0;
+      // Gestion sécurisée de la conversion
+      let totalRevenue = 0;
+      if (revenueResult && revenueResult.total !== null && revenueResult.total !== undefined) {
+        totalRevenue = parseFloat(revenueResult.total.toString());
+        if (isNaN(totalRevenue)) {
+          totalRevenue = 0;
+        }
+      }
 
-    return {
-      totalOrders,
-      totalRevenue,
-      pendingOrders,
-      completedOrders,
-    };
+      return {
+        totalOrders,
+        totalRevenue,
+        pendingOrders,
+        completedOrders,
+      };
+    } catch (error) {
+      console.error('Erreur lors du calcul des statistiques de commandes:', error);
+      // Retourner des valeurs par défaut en cas d'erreur
+      return {
+        totalOrders: 0,
+        totalRevenue: 0,
+        pendingOrders: 0,
+        completedOrders: 0,
+      };
+    }
   }
 }

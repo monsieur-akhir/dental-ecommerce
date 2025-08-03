@@ -18,6 +18,7 @@ import { EmailModule } from './email/email.module';
 import { ConfigModule as AppConfigModule } from './config/config.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { SmtpConfigModule } from './smtp-config/smtp-config.module';
+import { ReportsModule } from './reports/reports.module';
 import { 
   User, Role, Product, Category, Order, OrderItem, Image, 
   Wishlist, Comparison, Notification, ChatSession, ChatMessage,
@@ -78,6 +79,7 @@ import {
     AppConfigModule,
     ReviewsModule,
     SmtpConfigModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { reportsService } from '../../services/api';
 
 interface ReportData {
   sales: {
@@ -40,70 +41,23 @@ const AdminReports: React.FC = () => {
   const fetchReportData = async () => {
     try {
       setLoading(true);
-      // Simuler des données de rapport (remplacer par de vrais appels API)
-      const mockData: ReportData = {
-        sales: {
-          total: 125000,
-          monthly: [
-            { month: 'Jan', amount: 15000 },
-            { month: 'Fév', amount: 18000 },
-            { month: 'Mar', amount: 22000 },
-            { month: 'Avr', amount: 19000 },
-            { month: 'Mai', amount: 25000 },
-            { month: 'Juin', amount: 28000 },
-          ],
-          daily: [
-            { date: '2024-01-01', amount: 500 },
-            { date: '2024-01-02', amount: 750 },
-            { date: '2024-01-03', amount: 600 },
-            { date: '2024-01-04', amount: 900 },
-            { date: '2024-01-05', amount: 1200 },
-          ]
-        },
-        orders: {
-          total: 1250,
-          pending: 45,
-          completed: 1150,
-          cancelled: 55,
-          monthly: [
-            { month: 'Jan', count: 120 },
-            { month: 'Fév', count: 140 },
-            { month: 'Mar', count: 180 },
-            { month: 'Avr', count: 160 },
-            { month: 'Mai', count: 200 },
-            { month: 'Juin', count: 220 },
-          ]
-        },
-        products: {
-          total: 450,
-          active: 420,
-          lowStock: 15,
-          topSelling: [
-            { id: 1, name: 'Foret dentaire premium', sales: 1250 },
-            { id: 2, name: 'Lampe de diagnostic', sales: 980 },
-            { id: 3, name: 'Seringue d\'anesthésie', sales: 850 },
-            { id: 4, name: 'Masque de protection', sales: 720 },
-            { id: 5, name: 'Gants chirurgicaux', sales: 680 },
-          ]
-        },
-        users: {
-          total: 1250,
-          active: 980,
-          newThisMonth: 45,
-          monthly: [
-            { month: 'Jan', count: 80 },
-            { month: 'Fév', count: 95 },
-            { month: 'Mar', count: 110 },
-            { month: 'Avr', count: 105 },
-            { month: 'Mai', count: 125 },
-            { month: 'Juin', count: 135 },
-          ]
-        }
-      };
+      console.log('🔄 Chargement des rapports pour la période:', selectedPeriod);
       
-      setReportData(mockData);
+      // Récupération des vraies données depuis l'API
+      const completeReport = await reportsService.getCompleteReport(selectedPeriod);
+      
+      console.log('📊 Rapport complet récupéré:', completeReport);
+      
+      setReportData(completeReport);
     } catch (err) {
-      console.error('Erreur lors du chargement des rapports:', err);
+      console.error('❌ Erreur lors du chargement des rapports:', err);
+      // En cas d'erreur, définir des données par défaut
+      setReportData({
+        sales: { total: 0, monthly: [], daily: [] },
+        orders: { total: 0, pending: 0, completed: 0, cancelled: 0, monthly: [] },
+        products: { total: 0, active: 0, lowStock: 0, topSelling: [] },
+        users: { total: 0, active: 0, newThisMonth: 0, monthly: [] }
+      });
     } finally {
       setLoading(false);
     }

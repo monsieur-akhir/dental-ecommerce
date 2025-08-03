@@ -22,11 +22,33 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       setError(null);
       
+      console.log('🔄 Chargement des statistiques...');
+      
       // Appels réels aux APIs pour récupérer les statistiques
       const [orderStats, userStats] = await Promise.all([
-        orderService.getStats(),
-        userService.getStats()
+        orderService.getStats().catch(err => {
+          console.error('❌ Erreur lors du chargement des statistiques de commandes:', err);
+          return {
+            totalOrders: 0,
+            totalRevenue: 0,
+            pendingOrders: 0,
+            completedOrders: 0,
+          };
+        }),
+        userService.getStats().catch(err => {
+          console.error('❌ Erreur lors du chargement des statistiques utilisateurs:', err);
+          return {
+            totalUsers: 0,
+            activeUsers: 0,
+            inactiveUsers: 0,
+            adminUsers: 0,
+            clientUsers: 0,
+          };
+        })
       ]);
+      
+      console.log('📊 Statistiques de commandes:', orderStats);
+      console.log('👥 Statistiques utilisateurs:', userStats);
       
       setStats({
         totalOrders: orderStats?.totalOrders || 0,
@@ -36,9 +58,21 @@ const Dashboard: React.FC = () => {
         totalUsers: userStats?.totalUsers || 0,
         activeUsers: userStats?.activeUsers || 0,
       });
+      
+      console.log('✅ Statistiques chargées avec succès');
     } catch (err) {
-      console.error('Erreur lors du chargement des statistiques:', err);
-      setError('Erreur lors du chargement des statistiques');
+      console.error('❌ Erreur générale lors du chargement des statistiques:', err);
+      setError('Erreur lors du chargement des statistiques. Veuillez réessayer.');
+      
+      // Définir des valeurs par défaut en cas d'erreur
+      setStats({
+        totalOrders: 0,
+        totalRevenue: 0,
+        pendingOrders: 0,
+        completedOrders: 0,
+        totalUsers: 0,
+        activeUsers: 0,
+      });
     } finally {
       setLoading(false);
     }

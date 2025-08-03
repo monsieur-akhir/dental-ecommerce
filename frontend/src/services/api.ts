@@ -448,5 +448,33 @@ export const emailService = {
   },
 };
 
+// Services de rapports
+export const reportsService = {
+  getSalesReport: async (period: '7d' | '30d' | '90d' | '1y' = '30d'): Promise<any> => {
+    const response = await api.get(`/reports/sales?period=${period}`);
+    return response.data;
+  },
+  
+  getOrdersReport: async (period: '7d' | '30d' | '90d' | '1y' = '30d'): Promise<any> => {
+    const response = await api.get(`/reports/orders?period=${period}`);
+    return response.data;
+  },
+  
+  getProductsReport: async (): Promise<any> => {
+    const response = await api.get('/reports/products');
+    return response.data;
+  },
+  
+  getUsersReport: async (period: '7d' | '30d' | '90d' | '1y' = '30d'): Promise<any> => {
+    const response = await api.get(`/reports/users?period=${period}`);
+    return response.data;
+  },
+  
+  getCompleteReport: async (period: '7d' | '30d' | '90d' | '1y' = '30d'): Promise<any> => {
+    const response = await api.get(`/reports/complete?period=${period}`);
+    return response.data;
+  },
+};
+
 export default api;
 

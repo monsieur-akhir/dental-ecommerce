@@ -95,11 +95,11 @@ const AdminSidebar: React.FC = () => {
   };
 
   return (
-    <div className={`bg-white shadow-lg border-r border-primary-100 transition-all duration-300 ${
+    <div className={`bg-white shadow-lg border-r border-primary-100 transition-all duration-300 flex flex-col ${
       collapsed ? 'w-16' : 'w-64'
     }`}>
       {/* Header */}
-      <div className="p-4 border-b border-primary-100">
+      <div className="p-4 border-b border-primary-100 flex-shrink-0">
         <div className="flex items-center justify-between">
           {!collapsed && (
             <div>
@@ -120,7 +120,7 @@ const AdminSidebar: React.FC = () => {
 
       {/* User Info */}
       {!collapsed && user && (
-        <div className="p-4 border-b border-primary-100">
+        <div className="p-4 border-b border-primary-100 flex-shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 bg-gradient-to-br from-accent-500 to-accent-600 rounded-full flex items-center justify-center">
               <span className="text-white text-sm font-bold">
@@ -138,7 +138,7 @@ const AdminSidebar: React.FC = () => {
       )}
 
       {/* Navigation */}
-      <nav className="p-2">
+      <nav className="p-2 flex-1 overflow-y-auto">
         <div className="space-y-1">
           {navigation.map((item) => (
             <Link
@@ -172,7 +172,7 @@ const AdminSidebar: React.FC = () => {
 
       {/* Footer */}
       {!collapsed && (
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-primary-100">
+        <div className="p-4 border-t border-primary-100 flex-shrink-0">
           <div className="text-center">
             <p className="text-xs text-primary-500">Version 1.0.0</p>
             <p className="text-xs text-primary-400">© 2024 DentalPro</p>

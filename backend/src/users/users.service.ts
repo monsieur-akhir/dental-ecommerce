@@ -214,27 +214,40 @@ export class UsersService {
     adminUsers: number;
     clientUsers: number;
   }> {
-    const totalUsers = await this.userRepository.count();
-    const activeUsers = await this.userRepository.count({ where: { isActive: true } });
-    const inactiveUsers = await this.userRepository.count({ where: { isActive: false } });
+    try {
+      // Statistiques de base
+      const totalUsers = await this.userRepository.count();
+      const activeUsers = await this.userRepository.count({ where: { isActive: true } });
+      const inactiveUsers = await this.userRepository.count({ where: { isActive: false } });
 
-    // Compter les utilisateurs par rôle
-    const adminRole = await this.roleRepository.findOne({ where: { name: RoleType.ADMIN } });
-    const clientRole = await this.roleRepository.findOne({ where: { name: RoleType.CLIENT } });
+      // Compter les utilisateurs par rôle
+      const adminRole = await this.roleRepository.findOne({ where: { name: RoleType.ADMIN } });
+      const clientRole = await this.roleRepository.findOne({ where: { name: RoleType.CLIENT } });
 
-    const adminUsers = adminRole
-      ? await this.userRepository.count({ where: { roleId: adminRole.id } })
-      : 0;
-    const clientUsers = clientRole
-      ? await this.userRepository.count({ where: { roleId: clientRole.id } })
-      : 0;
+      const adminUsers = adminRole
+        ? await this.userRepository.count({ where: { roleId: adminRole.id } })
+        : 0;
+      const clientUsers = clientRole
+        ? await this.userRepository.count({ where: { roleId: clientRole.id } })
+        : 0;
 
-    return {
-      totalUsers,
-      activeUsers,
-      inactiveUsers,
-      adminUsers,
-      clientUsers,
-    };
+      return {
+        totalUsers,
+        activeUsers,
+        inactiveUsers,
+        adminUsers,
+        clientUsers,
+      };
+    } catch (error) {
+      console.error('Erreur lors du calcul des statistiques utilisateurs:', error);
+      // Retourner des valeurs par défaut en cas d'erreur
+      return {
+        totalUsers: 0,
+        activeUsers: 0,
+        inactiveUsers: 0,
+        adminUsers: 0,
+        clientUsers: 0,
+      };
+    }
   }
 }

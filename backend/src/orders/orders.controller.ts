@@ -56,8 +56,57 @@ export class OrdersController {
   @UseGuards(RolesGuard)
   @Roles(RoleType.ADMIN)
   @Get('stats')
-  getOrderStats() {
-    return this.ordersService.getOrderStats();
+  async getOrderStats() {
+    console.log('📊 Demande de statistiques de commandes...');
+    try {
+      const stats = await this.ordersService.getOrderStats();
+      console.log('✅ Statistiques de commandes récupérées:', stats);
+      return stats;
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération des statistiques de commandes:', error);
+      throw error;
+    }
+  }
+
+  @UseGuards(RolesGuard)
+  @Roles(RoleType.ADMIN)
+  @Get('stats/test')
+  async testOrderStats() {
+    console.log('🧪 Test des statistiques de commandes...');
+    try {
+      // Test des requêtes individuelles
+      const totalOrders = await this.ordersService['orderRepository'].count();
+      console.log('📦 Total commandes:', totalOrders);
+      
+      const pendingOrders = await this.ordersService['orderRepository'].count({
+        where: { status: OrderStatus.PENDING },
+      });
+      console.log('⏳ Commandes en attente:', pendingOrders);
+      
+      const completedOrders = await this.ordersService['orderRepository'].count({
+        where: { status: OrderStatus.DELIVERED },
+      });
+      console.log('✅ Commandes livrées:', completedOrders);
+      
+      const revenueResult = await this.ordersService['orderRepository']
+        .createQueryBuilder('order')
+        .select('COALESCE(SUM(order.totalAmount), 0)', 'total')
+        .where('order.status != :status', { status: OrderStatus.CANCELLED })
+        .getRawOne();
+      
+      console.log('💰 Résultat revenus:', revenueResult);
+      
+      return {
+        message: 'Test des statistiques terminé',
+        totalOrders,
+        pendingOrders,
+        completedOrders,
+        revenueResult,
+      };
+    } catch (error) {
+      console.error('❌ Erreur lors du test des statistiques:', error);
+      throw error;
+    }
   }
 
   @Get(':id')

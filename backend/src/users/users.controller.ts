@@ -37,8 +37,16 @@ export class UsersController {
 
   @Get("stats")
   @Roles(RoleType.ADMIN)
-  getStats() {
-    return this.usersService.getUserStats();
+  async getStats() {
+    console.log('👥 Demande de statistiques utilisateurs...');
+    try {
+      const stats = await this.usersService.getUserStats();
+      console.log('✅ Statistiques utilisateurs récupérées:', stats);
+      return stats;
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération des statistiques utilisateurs:', error);
+      throw error;
+    }
   }
 
   @Get(":id")
