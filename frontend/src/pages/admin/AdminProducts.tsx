@@ -37,10 +37,29 @@ const AdminProducts: React.FC = () => {
     stockQuantity: '',
     weight: '',
     dimensions: '',
+    brand: '',
+    specifications: '',
+    sizes: [] as string[],
+    colors: [] as string[],
+    color: '',
+    size: '',
     isActive: true,
     isFeatured: false,
     categoryIds: [] as number[],
+    categoryNames: [] as string[],
   });
+
+  // États pour les nouvelles catégories
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [availableColors, setAvailableColors] = useState<string[]>([]);
+  const [availableSizes, setAvailableSizes] = useState<string[]>([]);
+
+  // Tailles et couleurs prédéfinies
+  const predefinedSizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
+  const predefinedColors = [
+    'Blanc', 'Noir', 'Rouge', 'Bleu', 'Vert', 'Jaune', 'Orange', 'Violet', 
+    'Rose', 'Gris', 'Marron', 'Beige', 'Transparent', 'Multicolore'
+  ];
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -49,6 +68,19 @@ const AdminProducts: React.FC = () => {
     } catch (err) {
       console.error('Erreur lors du chargement des catégories:', err);
       setError('Erreur lors du chargement des catégories');
+    }
+  }, []);
+
+  const fetchAvailableVariants = useCallback(async () => {
+    try {
+      const [colors, sizes] = await Promise.all([
+        productService.getAvailableColors(),
+        productService.getAvailableSizes()
+      ]);
+      setAvailableColors(colors);
+      setAvailableSizes(sizes);
+    } catch (err) {
+      console.error('Erreur lors du chargement des variantes:', err);
     }
   }, []);
 
@@ -78,8 +110,9 @@ const AdminProducts: React.FC = () => {
 
   useEffect(() => {
     fetchCategories();
+    fetchAvailableVariants();
     fetchProducts();
-  }, [fetchCategories, fetchProducts]);
+  }, [fetchCategories, fetchAvailableVariants, fetchProducts]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -99,6 +132,71 @@ const AdminProducts: React.FC = () => {
       setSuccess('Image supprimée avec succès !');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erreur lors de la suppression de l\'image');
+    }
+  };
+
+  // Fonctions pour gérer les nouvelles catégories
+  const addNewCategory = () => {
+    if (newCategoryName.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        categoryNames: [...prev.categoryNames, newCategoryName.trim()]
+      }));
+      setNewCategoryName('');
+    }
+  };
+
+  const removeNewCategory = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      categoryNames: prev.categoryNames.filter((_, i) => i !== index)
+    }));
+  };
+
+  // Fonctions pour gérer les variantes
+  const addSize = (size: string) => {
+    if (!formData.sizes.includes(size)) {
+      setFormData(prev => ({
+        ...prev,
+        sizes: [...prev.sizes, size]
+      }));
+    }
+  };
+
+  const removeSize = (size: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: prev.sizes.filter(s => s !== size)
+    }));
+  };
+
+  const addColor = (color: string) => {
+    if (!formData.colors.includes(color)) {
+      setFormData(prev => ({
+        ...prev,
+        colors: [...prev.colors, color]
+      }));
+    }
+  };
+
+  const removeColor = (color: string) => {
+    setFormData(prev => ({
+      ...prev,
+      colors: prev.colors.filter(c => c !== color)
+    }));
+  };
+
+  const addCustomSize = () => {
+    const customSize = prompt('Entrez la taille personnalisée:');
+    if (customSize && customSize.trim()) {
+      addSize(customSize.trim());
+    }
+  };
+
+  const addCustomColor = () => {
+    const customColor = prompt('Entrez la couleur personnalisée:');
+    if (customColor && customColor.trim()) {
+      addColor(customColor.trim());
     }
   };
 
@@ -187,9 +285,16 @@ const AdminProducts: React.FC = () => {
       stockQuantity: product.stockQuantity.toString(),
       weight: product.weight?.toString() || '',
       dimensions: product.dimensions || '',
+      brand: product.brand || '',
+      specifications: product.specifications || '',
+      sizes: product.sizes || [],
+      colors: product.colors || [],
+      color: product.color || '',
+      size: product.size || '',
       isActive: product.isActive,
       isFeatured: product.isFeatured,
       categoryIds: product.categories?.map(c => c.id) || [],
+      categoryNames: product.categories?.map(c => c.name) || [],
     });
     setShowModal(true);
   };
@@ -221,9 +326,16 @@ const AdminProducts: React.FC = () => {
       stockQuantity: '',
       weight: '',
       dimensions: '',
+      brand: '',
+      specifications: '',
+      sizes: [],
+      colors: [],
+      color: '',
+      size: '',
       isActive: true,
       isFeatured: false,
       categoryIds: [],
+      categoryNames: [],
     });
     setSelectedFiles([]);
     setProductImages([]);
@@ -598,12 +710,13 @@ const AdminProducts: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      SKU
+                      SKU (généré automatiquement si vide)
                     </label>
                     <input
                       type="text"
                       value={formData.sku}
                       onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                      placeholder="Laissez vide pour génération automatique"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
@@ -660,6 +773,58 @@ const AdminProducts: React.FC = () => {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Dimensions
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.dimensions}
+                      onChange={(e) => setFormData({ ...formData, dimensions: e.target.value })}
+                      placeholder="ex: 10x20x5 cm"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Marque
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.brand}
+                      onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
+                      placeholder="ex: DentalPro"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Couleur principale
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.color}
+                      onChange={(e) => setFormData({ ...formData, color: e.target.value })}
+                      placeholder="ex: Blanc"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Taille principale
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.size}
+                      onChange={(e) => setFormData({ ...formData, size: e.target.value })}
+                      placeholder="ex: M"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
 
                 {/* Descriptions */}
@@ -687,6 +852,19 @@ const AdminProducts: React.FC = () => {
                   />
                 </div>
 
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Spécifications techniques
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={formData.specifications}
+                    onChange={(e) => setFormData({ ...formData, specifications: e.target.value })}
+                    placeholder="Spécifications techniques du produit..."
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+
                 {/* Catégories */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -707,6 +885,112 @@ const AdminProducts: React.FC = () => {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Nouvelles catégories */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nouvelles catégories
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    {formData.categoryNames.map((name, index) => (
+                      <span key={index} className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center">
+                        {name}
+                        <button
+                          type="button"
+                          onClick={() => removeNewCategory(index)}
+                          className="ml-1 text-blue-800 hover:text-blue-900 focus:outline-none"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    value={newCategoryName}
+                    onChange={(e) => setNewCategoryName(e.target.value)}
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        addNewCategory();
+                      }
+                    }}
+                    placeholder="Ajouter une nouvelle catégorie (ex: Nouvelle Catégorie)"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={addNewCategory}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    disabled={!newCategoryName.trim()}
+                  >
+                    Ajouter
+                  </button>
+                </div>
+
+                {/* Variantes */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Variantes
+                  </label>
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    {formData.sizes.map((size, index) => (
+                      <span key={index} className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center">
+                        {size}
+                        <button
+                          type="button"
+                          onClick={() => removeSize(size)}
+                          className="ml-1 text-purple-800 hover:text-purple-900 focus:outline-none"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    {predefinedSizes.map((size) => (
+                      <span key={size} className="bg-purple-100 text-purple-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center cursor-pointer hover:bg-purple-200" onClick={() => addSize(size)}>
+                        {size}
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addCustomSize}
+                      className="ml-2 px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                    >
+                      + Taille personnalisée
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {formData.colors.map((color, index) => (
+                      <span key={index} className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center">
+                        {color}
+                        <button
+                          type="button"
+                          onClick={() => removeColor(color)}
+                          className="ml-1 text-red-800 hover:text-red-900 focus:outline-none"
+                        >
+                          <svg className="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    ))}
+                    {predefinedColors.map((color) => (
+                      <span key={color} className="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center cursor-pointer hover:bg-red-200" onClick={() => addColor(color)}>
+                        {color}
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addCustomColor}
+                      className="ml-2 px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+                    >
+                      + Couleur personnalisée
+                    </button>
+                  </div>
                 </div>
 
                 {/* Images existantes */}

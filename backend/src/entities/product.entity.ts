@@ -7,6 +7,8 @@ import {
   JoinTable,
   CreateDateColumn,
   UpdateDateColumn,
+  BeforeInsert,
+  BeforeUpdate,
 } from 'typeorm';
 import { Category } from './category.entity';
 import { Image } from './image.entity';
@@ -26,8 +28,14 @@ export class Product {
   @Column('text', { nullable: true })
   description: string;
 
+  @Column('text', { nullable: true })
+  shortDescription: string;
+
   @Column('decimal', { precision: 10, scale: 2 })
   price: number;
+
+  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  comparePrice: number;
 
   @Column({ default: 0 })
   stockQuantity: number;
@@ -59,6 +67,19 @@ export class Product {
   @Column('text', { nullable: true })
   specifications: string;
 
+  // Nouveaux champs pour les variantes
+  @Column('simple-array', { nullable: true })
+  sizes: string[];
+
+  @Column('simple-array', { nullable: true })
+  colors: string[];
+
+  @Column({ nullable: true })
+  color: string;
+
+  @Column({ nullable: true })
+  size: string;
+
   @ManyToMany(() => Category, category => category.products)
   @JoinTable({
     name: 'product_categories',
@@ -87,5 +108,16 @@ export class Product {
 
   @UpdateDateColumn()
   updatedAt: Date;
+
+  // Génération automatique du SKU si non fourni
+  @BeforeInsert()
+  @BeforeUpdate()
+  generateSku() {
+    if (!this.sku) {
+      const timestamp = Date.now().toString().slice(-6);
+      const random = Math.random().toString(36).substring(2, 8).toUpperCase();
+      this.sku = `SKU-${timestamp}-${random}`;
+    }
+  }
 }
 

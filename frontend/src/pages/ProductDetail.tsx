@@ -7,6 +7,9 @@ import { useNotification } from '../contexts/NotificationContext';
 import { productService } from '../services/api';
 import { Product } from '../types';
 import { getImageUrl, handleImageError } from '../utils/imageUtils';
+import ProductVariants from '../components/ProductVariants';
+import ProductCard from '../components/ProductCard';
+import SimilarProductCard from '../components/SimilarProductCard';
 
 const ProductDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -15,6 +18,10 @@ const ProductDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(product?.color);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(product?.size);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+  const [loadingSimilar, setLoadingSimilar] = useState(false);
 
   const { addToCart, isAddingToCart } = useCart();
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
@@ -29,6 +36,16 @@ const ProductDetail: React.FC = () => {
         setLoading(true);
         const productData = await productService.getById(parseInt(id));
         setProduct(productData);
+        
+        // Charger les produits similaires après avoir récupéré le produit
+        if (productData) {
+          await fetchSimilarProducts(
+            productData.id,
+            productData.name,
+            productData.category?.id,
+            productData.brand
+          );
+        }
       } catch (err) {
         console.error('Erreur lors du chargement du produit:', err);
         setError('Produit non trouvé');
@@ -52,6 +69,128 @@ const ProductDetail: React.FC = () => {
           duration: 5000
         });
       }
+    }
+  };
+
+  const handleVariantChange = (color?: string, size?: string) => {
+    setSelectedColor(color);
+    setSelectedSize(size);
+  };
+
+  const fetchSimilarProducts = async (productId: number, productName: string, categoryId?: number, brand?: string) => {
+    try {
+      setLoadingSimilar(true);
+      
+      // Extraire les mots-clés du nom du produit
+      const keywords = productName
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(word => word.length > 2) // Ignorer les mots trop courts
+        .filter(word => !['de', 'la', 'le', 'et', 'ou', 'avec', 'pour', 'dans', 'sur', 'par'].includes(word)); // Ignorer les mots de liaison
+
+      // Rechercher des produits avec des noms similaires
+      const similarProducts: Product[] = [];
+      
+      // Stratégie 1: Recherche par mots-clés dans le nom
+      for (const keyword of keywords) {
+        if (similarProducts.length >= 8) break;
+        
+        const params: any = {
+          search: keyword,
+          limit: 12,
+          excludeId: productId
+        };
+        
+        if (categoryId) {
+          params.categoryIds = [categoryId];
+        }
+        
+        const response = await productService.getAll(params);
+        const newProducts = response.products.filter(p => 
+          !similarProducts.some(sp => sp.id === p.id)
+        );
+        similarProducts.push(...newProducts.slice(0, 8 - similarProducts.length));
+      }
+
+      // Stratégie 2: Même marque avec nom similaire
+      if (brand && similarProducts.length < 8) {
+        const params: any = {
+          brand: brand,
+          limit: 12,
+          excludeId: productId
+        };
+        
+        const response = await productService.getAll(params);
+        const brandProducts = response.products.filter(p => 
+          !similarProducts.some(sp => sp.id === p.id) &&
+          // Vérifier si le nom contient des mots-clés similaires
+          keywords.some(keyword => 
+            p.name.toLowerCase().includes(keyword)
+          )
+        );
+        similarProducts.push(...brandProducts.slice(0, 8 - similarProducts.length));
+      }
+
+      // Stratégie 3: Même catégorie avec nom similaire
+      if (categoryId && similarProducts.length < 8) {
+        const params: any = {
+          categoryIds: [categoryId],
+          limit: 12,
+          excludeId: productId
+        };
+        
+        const response = await productService.getAll(params);
+        const categoryProducts = response.products.filter(p => 
+          !similarProducts.some(sp => sp.id === p.id) &&
+          // Vérifier si le nom contient des mots-clés similaires
+          keywords.some(keyword => 
+            p.name.toLowerCase().includes(keyword)
+          )
+        );
+        similarProducts.push(...categoryProducts.slice(0, 8 - similarProducts.length));
+      }
+
+      // Stratégie 4: Produits avec variantes (même nom de base mais différentes tailles/couleurs)
+      if (similarProducts.length < 8) {
+        // Chercher des produits qui ont le même nom de base
+        const baseName = productName.toLowerCase().replace(/\d+mm|\d+cm|\d+"/g, '').trim();
+        
+        const params: any = {
+          search: baseName.split(' ').slice(0, 3).join(' '), // Prendre les 3 premiers mots
+          limit: 20,
+          excludeId: productId
+        };
+        
+        const response = await productService.getAll(params);
+        const variantProducts = response.products.filter(p => 
+          !similarProducts.some(sp => sp.id === p.id) &&
+          // Vérifier si c'est une variante (même nom de base mais différences)
+          p.name.toLowerCase().includes(baseName.split(' ')[0]) &&
+          p.name.toLowerCase().includes(baseName.split(' ')[1])
+        );
+        similarProducts.push(...variantProducts.slice(0, 8 - similarProducts.length));
+      }
+
+      // Stratégie 5: Produits vedettes comme fallback
+      if (similarProducts.length < 4) {
+        const params: any = {
+          isFeatured: true,
+          limit: 8,
+          excludeId: productId
+        };
+        
+        const response = await productService.getAll(params);
+        const featuredProducts = response.products.filter(p => 
+          !similarProducts.some(sp => sp.id === p.id)
+        );
+        similarProducts.push(...featuredProducts.slice(0, 8 - similarProducts.length));
+      }
+
+      setSimilarProducts(similarProducts);
+    } catch (err) {
+      console.error('Erreur lors du chargement des produits similaires:', err);
+    } finally {
+      setLoadingSimilar(false);
     }
   };
 
@@ -279,6 +418,34 @@ const ProductDetail: React.FC = () => {
               </div>
             )}
 
+            {/* Variantes */}
+            <ProductVariants
+              product={product}
+              onVariantChange={handleVariantChange}
+              selectedColor={selectedColor}
+              selectedSize={selectedSize}
+            />
+
+            {/* Marque */}
+            {product.brand && (
+              <div>
+                <h3 className="text-lg font-semibold text-primary-800 mb-3">Marque</h3>
+                <p className="text-primary-600">
+                  {product.brand}
+                </p>
+              </div>
+            )}
+
+            {/* Spécifications */}
+            {product.specifications && (
+              <div>
+                <h3 className="text-lg font-semibold text-primary-800 mb-3">Spécifications techniques</h3>
+                <div className="text-primary-600 leading-relaxed whitespace-pre-line">
+                  {product.specifications}
+                </div>
+              </div>
+            )}
+
             {/* Quantité et Ajout au panier */}
             <div className="space-y-4">
               <div>
@@ -373,6 +540,50 @@ const ProductDetail: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Produits Similaires */}
+      {similarProducts.length > 0 && (
+        <section className="py-16 bg-gradient-to-br from-primary-50 via-white to-secondary-50">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl lg:text-4xl font-display font-bold text-primary-800 mb-4">
+                Produits Similaires
+              </h2>
+              <p className="text-lg text-primary-600 max-w-2xl mx-auto">
+                Découvrez d'autres produits qui pourraient vous intéresser
+              </p>
+            </div>
+
+            {loadingSimilar ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="flex items-center space-x-2">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-600"></div>
+                  <span className="text-primary-600">Chargement des produits similaires...</span>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
+                {similarProducts.map((similarProduct) => (
+                  <SimilarProductCard 
+                    key={similarProduct.id} 
+                    product={similarProduct} 
+                    originalProduct={product!}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="text-center mt-12">
+              <Link 
+                to="/products" 
+                className="btn btn-primary btn-lg text-lg px-8 py-4"
+              >
+                Voir tous les produits
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 };

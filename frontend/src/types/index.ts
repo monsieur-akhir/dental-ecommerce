@@ -27,6 +27,11 @@ export interface Category {
   description?: string;
   imageUrl?: string;
   isActive: boolean;
+  parentId?: number;
+  parent?: Category;
+  subcategories?: Category[];
+  sortOrder: number;
+  slug?: string;
   products?: Product[];
   createdAt: string;
   updatedAt: string;
@@ -47,6 +52,11 @@ export interface Product {
   dimensions?: string;
   brand?: string;
   specifications?: string;
+  // Nouveaux champs pour les variantes
+  sizes?: string[];
+  colors?: string[];
+  color?: string;
+  size?: string;
   isActive: boolean;
   isFeatured: boolean;
   featured?: boolean;

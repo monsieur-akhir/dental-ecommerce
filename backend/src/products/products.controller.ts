@@ -67,6 +67,16 @@ export class ProductsController {
     return this.productsService.findBestSellers(limitValue);
   }
 
+  @Get('colors')
+  getAvailableColors() {
+    return this.productsService.getAvailableColors();
+  }
+
+  @Get('sizes')
+  getAvailableSizes() {
+    return this.productsService.getAvailableSizes();
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.productsService.findOne(id);

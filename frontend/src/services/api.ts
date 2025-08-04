@@ -69,6 +69,7 @@ export const authService = {
 export const productService = {
   getAll: async (params?: {
     categoryId?: number;
+    categoryIds?: number[];
     search?: string;
     isActive?: boolean;
     isFeatured?: boolean;
@@ -78,6 +79,10 @@ export const productService = {
     sortOrder?: string;
     page?: number;
     limit?: number;
+    color?: string;
+    size?: string;
+    brand?: string;
+    excludeId?: number;
   }): Promise<{ products: Product[]; total: number }> => {
     const response = await api.get('/products', { params });
     return response.data;
@@ -120,6 +125,17 @@ export const productService = {
 
   deleteImage: async (imageId: number): Promise<void> => {
     await api.delete(`/products/images/${imageId}`);
+  },
+
+  // Nouvelles méthodes pour les variantes
+  getAvailableColors: async (): Promise<string[]> => {
+    const response = await api.get('/products/colors');
+    return response.data;
+  },
+
+  getAvailableSizes: async (): Promise<string[]> => {
+    const response = await api.get('/products/sizes');
+    return response.data;
   },
 };
 

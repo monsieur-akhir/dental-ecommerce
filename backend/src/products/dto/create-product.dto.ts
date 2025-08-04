@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsBoolean, IsArray, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsBoolean, IsArray, Min, IsEnum } from 'class-validator';
 
 export class CreateProductDto {
   @IsString()
@@ -42,6 +42,33 @@ export class CreateProductDto {
   dimensions?: string;
 
   @IsOptional()
+  @IsString()
+  brand?: string;
+
+  @IsOptional()
+  @IsString()
+  specifications?: string;
+
+  // Nouveaux champs pour les variantes
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  sizes?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  colors?: string[];
+
+  @IsOptional()
+  @IsString()
+  color?: string;
+
+  @IsOptional()
+  @IsString()
+  size?: string;
+
+  @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 
@@ -52,5 +79,10 @@ export class CreateProductDto {
   @IsOptional()
   @IsArray()
   categoryIds?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categoryNames?: string[];
 }
 

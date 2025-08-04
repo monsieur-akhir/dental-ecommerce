@@ -16,10 +16,11 @@ export class ProductsService {
   ) {}
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
-    const { categoryIds, ...productData } = createProductDto;
+    const { categoryIds, categoryNames, ...productData } = createProductDto;
 
     const product = this.productRepository.create(productData);
 
+    // Gestion des catégories
     if (categoryIds && categoryIds.length > 0) {
       const categories = await this.categoryRepository.findBy({
         id: In(categoryIds),
@@ -27,16 +28,49 @@ export class ProductsService {
       product.categories = categories;
     }
 
+    // Création automatique de nouvelles catégories si fournies
+    if (categoryNames && categoryNames.length > 0) {
+      const existingCategories = product.categories || [];
+      const newCategories: Category[] = [];
+
+      for (const categoryName of categoryNames) {
+        let category = await this.categoryRepository.findOne({
+          where: { name: categoryName }
+        });
+
+        if (!category) {
+          // Créer automatiquement la catégorie
+          category = this.categoryRepository.create({
+            name: categoryName,
+            description: `Catégorie créée automatiquement pour ${categoryName}`,
+            isActive: true,
+            slug: categoryName.toLowerCase().replace(/\s+/g, '-')
+          });
+          category = await this.categoryRepository.save(category);
+        }
+
+        newCategories.push(category);
+      }
+
+      product.categories = [...existingCategories, ...newCategories];
+    }
+
+    // Le SKU sera généré automatiquement par l'entité si non fourni
     return this.productRepository.save(product);
   }
 
   async findAll(options?: {
     categoryId?: number;
+    categoryIds?: number[];
     search?: string;
     isActive?: boolean;
     isFeatured?: boolean;
     page?: number;
     limit?: number;
+    color?: string;
+    size?: string;
+    brand?: string;
+    excludeId?: number;
   }): Promise<{ products: Product[]; total: number }> {
     const queryBuilder = this.productRepository
       .createQueryBuilder('product')
@@ -50,9 +84,15 @@ export class ProductsService {
       });
     }
 
+    if (options?.categoryIds && options.categoryIds.length > 0) {
+      queryBuilder.andWhere('category.id IN (:...categoryIds)', {
+        categoryIds: options.categoryIds,
+      });
+    }
+
     if (options?.search) {
       queryBuilder.andWhere(
-        '(product.name LIKE :search OR product.description LIKE :search)',
+        '(product.name LIKE :search OR product.description LIKE :search OR product.sku LIKE :search)',
         { search: `%${options.search}%` },
       );
     }
@@ -66,6 +106,33 @@ export class ProductsService {
     if (options?.isFeatured !== undefined) {
       queryBuilder.andWhere('product.isFeatured = :isFeatured', {
         isFeatured: options.isFeatured,
+      });
+    }
+
+    if (options?.brand) {
+      queryBuilder.andWhere('product.brand = :brand', {
+        brand: options.brand,
+      });
+    }
+
+    if (options?.excludeId) {
+      queryBuilder.andWhere('product.id != :excludeId', {
+        excludeId: options.excludeId,
+      });
+    }
+
+    // Filtres pour les variantes
+    if (options?.color) {
+      queryBuilder.andWhere('product.color = :color OR product.colors LIKE :colorLike', {
+        color: options.color,
+        colorLike: `%${options.color}%`
+      });
+    }
+
+    if (options?.size) {
+      queryBuilder.andWhere('product.size = :size OR product.sizes LIKE :sizeLike', {
+        size: options.size,
+        sizeLike: `%${options.size}%`
       });
     }
 
@@ -94,22 +161,47 @@ export class ProductsService {
   }
 
   async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
-    const { categoryIds, ...productData } = updateProductDto;
+    const { categoryIds, categoryNames, ...productData } = updateProductDto;
 
     const product = await this.findOne(id);
 
-    if (categoryIds !== undefined) {
-      if (categoryIds.length > 0) {
-        const categories = await this.categoryRepository.findBy({
-          id: In(categoryIds),
-        });
-        product.categories = categories;
-      } else {
-        product.categories = [];
-      }
+    // Mise à jour des propriétés du produit
+    Object.assign(product, productData);
+
+    // Gestion des catégories
+    if (categoryIds && categoryIds.length > 0) {
+      const categories = await this.categoryRepository.findBy({
+        id: In(categoryIds),
+      });
+      product.categories = categories;
     }
 
-    Object.assign(product, productData);
+    // Création automatique de nouvelles catégories si fournies
+    if (categoryNames && categoryNames.length > 0) {
+      const existingCategories = product.categories || [];
+      const newCategories: Category[] = [];
+
+      for (const categoryName of categoryNames) {
+        let category = await this.categoryRepository.findOne({
+          where: { name: categoryName }
+        });
+
+        if (!category) {
+          // Créer automatiquement la catégorie
+          category = this.categoryRepository.create({
+            name: categoryName,
+            description: `Catégorie créée automatiquement pour ${categoryName}`,
+            isActive: true,
+            slug: categoryName.toLowerCase().replace(/\s+/g, '-')
+          });
+          category = await this.categoryRepository.save(category);
+        }
+
+        newCategories.push(category);
+      }
+
+      product.categories = [...existingCategories, ...newCategories];
+    }
 
     return this.productRepository.save(product);
   }
@@ -121,21 +213,16 @@ export class ProductsService {
 
   async findLowStock(threshold: number = 10): Promise<Product[]> {
     return this.productRepository.find({
-      where: {
-        stockQuantity: threshold,
-        isActive: true,
-      },
-      relations: ['categories', 'images'],
-      order: { stockQuantity: 'ASC' },
+      where: { stockQuantity: threshold },
+      relations: ['categories'],
     });
   }
 
   async findBestSellers(limit: number = 10): Promise<Product[]> {
     return this.productRepository.find({
-      where: { isActive: true },
-      relations: ['categories', 'images'],
-      order: { createdAt: 'DESC' },
+      order: { salesCount: 'DESC' },
       take: limit,
+      relations: ['categories', 'images'],
     });
   }
 
@@ -147,19 +234,17 @@ export class ProductsService {
     const product = await this.findOne(productId);
     const images: Image[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const isPrimary = body.isPrimary === 'true' && i === 0;
-
+    for (const file of files) {
       const image = this.imageRepository.create({
         filename: file.filename,
         originalName: file.originalname,
         url: `/uploads/${file.filename}`,
         mimeType: file.mimetype,
         size: file.size,
-        sortOrder: parseInt(body.sortOrder || i.toString()),
-        isPrimary,
-        product,
+        altText: file.originalname,
+        sortOrder: body.sortOrder ? parseInt(body.sortOrder) : 0,
+        isPrimary: body.isPrimary === 'true',
+        product: product,
       });
 
       const savedImage = await this.imageRepository.save(image);
@@ -179,5 +264,44 @@ export class ProductsService {
     }
 
     await this.imageRepository.remove(image);
+  }
+
+  // Méthodes utilitaires pour les variantes
+  async getAvailableColors(): Promise<string[]> {
+    const products = await this.productRepository.find({
+      select: ['colors', 'color'],
+      where: { isActive: true }
+    });
+
+    const colors = new Set<string>();
+    products.forEach(product => {
+      if (product.colors) {
+        product.colors.forEach(color => colors.add(color));
+      }
+      if (product.color) {
+        colors.add(product.color);
+      }
+    });
+
+    return Array.from(colors).sort();
+  }
+
+  async getAvailableSizes(): Promise<string[]> {
+    const products = await this.productRepository.find({
+      select: ['sizes', 'size'],
+      where: { isActive: true }
+    });
+
+    const sizes = new Set<string>();
+    products.forEach(product => {
+      if (product.sizes) {
+        product.sizes.forEach(size => sizes.add(size));
+      }
+      if (product.size) {
+        sizes.add(product.size);
+      }
+    });
+
+    return Array.from(sizes).sort();
   }
 }

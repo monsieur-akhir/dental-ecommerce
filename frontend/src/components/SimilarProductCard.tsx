@@ -6,15 +6,15 @@ import { useWishlist } from '../contexts/WishlistContext';
 import { Product } from '../types';
 import { getImageUrl, handleImageError as handleImageErrorUtil } from '../utils/imageUtils';
 
-interface ProductCardProps {
+interface SimilarProductCardProps {
   product: Product;
-  showQuickActions?: boolean;
+  originalProduct: Product;
   className?: string;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ 
+const SimilarProductCard: React.FC<SimilarProductCardProps> = ({ 
   product, 
-  showQuickActions = true,
+  originalProduct,
   className = '' 
 }) => {
   const { user } = useAuth();
@@ -70,17 +70,49 @@ const ProductCard: React.FC<ProductCardProps> = ({
       return null;
     }
     
-    // Chercher l'image principale
     const primaryImage = product.images.find(img => img.isPrimary);
     if (primaryImage) {
       return primaryImage;
     }
     
-    // Sinon, retourner la première image
     return product.images[0];
   };
 
   const mainImage = getMainImage();
+
+  // Identifier les différences avec le produit original
+  const getDifferences = () => {
+    const differences = [];
+    
+    // Différence de taille
+    if (product.size && originalProduct.size && product.size !== originalProduct.size) {
+      differences.push({ type: 'size', value: product.size, label: 'Taille' });
+    }
+    
+    // Différence de couleur
+    if (product.color && originalProduct.color && product.color !== originalProduct.color) {
+      differences.push({ type: 'color', value: product.color, label: 'Couleur' });
+    }
+    
+    // Différence de prix
+    const priceDiff = product.price - originalProduct.price;
+    if (Math.abs(priceDiff) > 0.01) {
+      differences.push({ 
+        type: 'price', 
+        value: priceDiff > 0 ? `+${formatPrice(priceDiff)}` : formatPrice(priceDiff),
+        label: 'Prix'
+      });
+    }
+    
+    // Différence de marque
+    if (product.brand && originalProduct.brand && product.brand !== originalProduct.brand) {
+      differences.push({ type: 'brand', value: product.brand, label: 'Marque' });
+    }
+    
+    return differences;
+  };
+
+  const differences = getDifferences();
 
   return (
     <div 
@@ -130,7 +162,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Wishlist Button */}
-        {user && showQuickActions && (
+        {user && (
           <button
             onClick={handleWishlistToggle}
             className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 ${
@@ -146,7 +178,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         )}
 
         {/* Quick Actions Overlay */}
-        {showQuickActions && isHovered && stock > 0 && (
+        {isHovered && stock > 0 && (
           <div className="absolute inset-0 bg-black/20 flex items-center justify-center transition-all duration-200">
             <button
               onClick={handleAddToCart}
@@ -188,6 +220,32 @@ const ProductCard: React.FC<ProductCardProps> = ({
             {product.name}
           </h3>
         </Link>
+
+        {/* Différences mises en évidence */}
+        {differences.length > 0 && (
+          <div className="mb-3">
+            <div className="flex flex-wrap gap-1">
+              {differences.map((diff, index) => (
+                <span 
+                  key={index} 
+                  className={`text-xs px-2 py-1 rounded-full font-medium ${
+                    diff.type === 'price' && diff.value.startsWith('+')
+                      ? 'bg-error-100 text-error-700'
+                      : diff.type === 'price' && diff.value.startsWith('-')
+                      ? 'bg-success-100 text-success-700'
+                      : diff.type === 'size'
+                      ? 'bg-secondary-100 text-secondary-700'
+                      : diff.type === 'color'
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'bg-accent-100 text-accent-700'
+                  }`}
+                >
+                  {diff.label}: {diff.value}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Description */}
         {product.description && (
@@ -248,31 +306,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* Rating */}
-        {product.rating && (
-          <div className="flex items-center mb-3">
-            <div className="flex items-center mr-2">
-              {[...Array(5)].map((_, i) => (
-                <svg
-                  key={i}
-                  className={`w-3 h-3 ${
-                    i < Math.floor(product.rating!)
-                      ? 'text-warning-400'
-                      : 'text-primary-300'
-                  }`}
-                  fill="currentColor"
-                  viewBox="0 0 20 20"
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-              ))}
-            </div>
-            <span className="text-xs text-primary-500">
-              ({product.reviewCount || 0} avis)
-            </span>
-          </div>
-        )}
-
         {/* Spacer to push button to bottom */}
         <div className="flex-1"></div>
 
@@ -296,37 +329,34 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Add to Cart Button */}
-        {showQuickActions && (
-          <button
-            onClick={handleAddToCart}
-            disabled={isAddingToCart || stock === 0}
-            className={`w-full py-2 px-4 rounded-xl font-medium transition-all duration-200 ${
-              stock === 0
-                ? 'bg-primary-100 text-primary-400 cursor-not-allowed'
-                : 'bg-accent-500 hover:bg-accent-600 text-white shadow-soft hover:shadow-medium'
-            }`}
-          >
-            {isAddingToCart ? (
-              <div className="flex items-center justify-center space-x-2">
-                <div className="loader w-4 h-4"></div>
-                <span>Ajout au panier...</span>
-              </div>
-            ) : stock === 0 ? (
-              'Rupture de stock'
-            ) : (
-              <div className="flex items-center justify-center space-x-2">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
-                </svg>
-                <span>Ajouter au panier</span>
-              </div>
-            )}
-          </button>
-        )}
+        <button
+          onClick={handleAddToCart}
+          disabled={isAddingToCart || stock === 0}
+          className={`w-full py-2 px-4 rounded-xl font-medium transition-all duration-200 ${
+            stock === 0
+              ? 'bg-primary-100 text-primary-400 cursor-not-allowed'
+              : 'bg-accent-500 hover:bg-accent-600 text-white shadow-soft hover:shadow-medium'
+          }`}
+        >
+          {isAddingToCart ? (
+            <div className="flex items-center justify-center space-x-2">
+              <div className="loader w-4 h-4"></div>
+              <span>Ajout au panier...</span>
+            </div>
+          ) : stock === 0 ? (
+            'Rupture de stock'
+          ) : (
+            <div className="flex items-center justify-center space-x-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.5 6M7 13l-1.5 6m0 0h9M17 13v6a2 2 0 01-2 2H9a2 2 0 01-2-2v-6" />
+              </svg>
+              <span>Ajouter au panier</span>
+            </div>
+          )}
+        </button>
       </div>
     </div>
   );
 };
 
-export default ProductCard;
-
+export default SimilarProductCard; 

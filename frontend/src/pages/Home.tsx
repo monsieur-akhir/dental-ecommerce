@@ -237,7 +237,7 @@ const Home: React.FC = () => {
           </div>
 
           {featuredProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
               {featuredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} showQuickActions={true} />
               ))}
@@ -276,7 +276,7 @@ const Home: React.FC = () => {
           </div>
 
           {allProducts.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 items-stretch">
               {allProducts.map((product) => (
                 <ProductCard key={product.id} product={product} showQuickActions={true} />
               ))}
